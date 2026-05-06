@@ -5,48 +5,129 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🍬 Sweet Candy Match 🍭 - 終極連鎖版</title>
     <style>
+        :root {
+            --accent: #d81b60;
+            --accent-2: #ec407a;
+            --accent-3: #ff6491;
+        }
+
+        * { box-sizing: border-box; }
+
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
-            background: repeating-linear-gradient(45deg, #ffe4e1, #ffe4e1 20px, #fff0f5 20px, #fff0f5 40px);
-            font-family: 'Comic Sans MS', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 45%, #c8a2c8 100%);
+            background-attachment: fixed;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 24px 16px 40px;
+            min-height: 100vh;
             touch-action: manipulation;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before,
+        body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(70px);
+            z-index: 0;
+            pointer-events: none;
+        }
+        body::before {
+            width: 360px; height: 360px;
+            background: radial-gradient(circle, rgba(255, 138, 128, 0.65), transparent 70%);
+            top: -100px; left: -100px;
+            animation: float 9s ease-in-out infinite;
+        }
+        body::after {
+            width: 320px; height: 320px;
+            background: radial-gradient(circle, rgba(170, 0, 255, 0.45), transparent 70%);
+            bottom: -100px; right: -100px;
+            animation: float 11s ease-in-out infinite reverse;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0); }
+            50% { transform: translate(30px, -25px) rotate(20deg); }
         }
 
         h1 {
-            color: #d81b60;
-            text-shadow: 2px 2px 0px #fff;
-            margin-bottom: 5px;
-            font-size: 36px;
+            color: #fff;
+            font-weight: 800;
+            margin: 8px 0 18px;
+            font-size: 40px;
+            letter-spacing: 0.5px;
+            text-align: center;
+            text-shadow: 0 2px 0 rgba(216, 27, 96, 0.4),
+                         0 6px 28px rgba(216, 27, 96, 0.5);
+            z-index: 1;
+            position: relative;
+        }
+        h1 .emoji {
+            display: inline-block;
+            animation: wiggle 2.4s ease-in-out infinite;
+        }
+        h1 .emoji:last-child { animation-delay: 0.3s; }
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0); }
+            25% { transform: rotate(-12deg); }
+            75% { transform: rotate(12deg); }
         }
 
         .score-board {
-            font-size: 26px;
-            font-weight: bold;
+            font-size: 22px;
+            font-weight: 700;
             color: #fff;
-            background-color: #ff6491;
-            padding: 10px 30px;
-            border-radius: 25px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            margin-bottom: 20px;
-            border: 3px solid #fff;
+            background: linear-gradient(135deg, #ff6491, #d81b60);
+            padding: 10px 32px;
+            border-radius: 999px;
+            box-shadow: 0 10px 28px rgba(216, 27, 96, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.55);
+            margin-bottom: 22px;
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            z-index: 1;
+            position: relative;
+            letter-spacing: 0.5px;
+        }
+        .score-board #score {
+            display: inline-block;
+            min-width: 30px;
+            text-align: left;
+            transition: transform 0.18s ease;
+        }
+        .score-board.bump #score {
+            animation: scoreBump 0.45s ease-out;
+        }
+        @keyframes scoreBump {
+            0%, 100% { transform: scale(1); color: #fff; text-shadow: none; }
+            45% {
+                transform: scale(1.45);
+                color: #fff59d;
+                text-shadow: 0 0 12px rgba(255, 245, 157, 0.9);
+            }
         }
 
         .grid {
             display: flex;
             flex-wrap: wrap;
-            width: 360px;
-            height: 360px;
-            background-color: rgba(255, 255, 255, 0.4);
-            border: 8px solid #fff;
-            border-radius: 16px;
-            padding: 5px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-            backdrop-filter: blur(5px);
+            width: 376px;
+            height: 376px;
+            background: rgba(255, 255, 255, 0.22);
+            border: 2px solid rgba(255, 255, 255, 0.55);
+            border-radius: 24px;
+            padding: 8px;
+            box-shadow: 0 24px 60px rgba(216, 27, 96, 0.28),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            z-index: 1;
+            position: relative;
         }
 
         .candy {
@@ -55,61 +136,155 @@
             border-radius: 50%;
             cursor: pointer;
             box-sizing: border-box;
-            box-shadow: inset -5px -5px 12px rgba(0,0,0,0.2), 
-                        inset 5px 5px 12px rgba(255,255,255,0.7), 
-                        0 4px 6px rgba(0,0,0,0.2);
-            transition: transform 0.2s, filter 0.2s, border-radius 0.2s;
+            box-shadow: inset -5px -5px 12px rgba(0, 0, 0, 0.22),
+                        inset 5px 5px 12px rgba(255, 255, 255, 0.75),
+                        0 4px 8px rgba(0, 0, 0, 0.18);
+            transition: transform 0.18s ease, filter 0.18s, box-shadow 0.18s, border-radius 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px; 
+            font-size: 24px;
             position: relative;
             overflow: hidden;
         }
+        .candy:hover {
+            transform: scale(1.08);
+            filter: brightness(1.05);
+        }
+        .candy.fresh {
+            animation: spawn 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes spawn {
+            0% { transform: translateY(-30px) scale(0.4); opacity: 0; }
+            60% { transform: translateY(0) scale(1.12); opacity: 1; }
+            100% { transform: translateY(0) scale(1); }
+        }
 
-        .candy:hover { transform: scale(1.1); }
         .selected {
             transform: scale(1.15) !important;
-            filter: brightness(1.3);
-            box-shadow: 0 0 15px 5px #fff;
+            filter: brightness(1.25);
+            animation: pulse 0.85s ease-in-out infinite;
+            z-index: 2;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 14px 3px rgba(255, 255, 255, 0.7),
+                            inset -5px -5px 12px rgba(0, 0, 0, 0.22),
+                            inset 5px 5px 12px rgba(255, 255, 255, 0.75);
+            }
+            50% {
+                box-shadow: 0 0 28px 10px rgba(255, 255, 255, 1),
+                            inset -5px -5px 12px rgba(0, 0, 0, 0.22),
+                            inset 5px 5px 12px rgba(255, 255, 255, 0.75);
+            }
         }
 
         /* 特效樣式 */
         .candy.stripe-h::after {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: repeating-linear-gradient(0deg, transparent, transparent 8px, rgba(255,255,255,0.6) 8px, rgba(255,255,255,0.6) 16px);
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 8px, rgba(255, 255, 255, 0.65) 8px, rgba(255, 255, 255, 0.65) 16px);
             pointer-events: none;
         }
         .candy.stripe-v::after {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(255,255,255,0.6) 8px, rgba(255,255,255,0.6) 16px);
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(255, 255, 255, 0.65) 8px, rgba(255, 255, 255, 0.65) 16px);
             pointer-events: none;
         }
         .candy.bomb {
             border-radius: 35%;
             border: 2px dashed #fff;
-            box-shadow: inset -3px -3px 8px rgba(0,0,0,0.3), 0 0 10px rgba(255,255,255,0.8);
+            animation: bombGlow 1.4s ease-in-out infinite;
+        }
+        @keyframes bombGlow {
+            0%, 100% {
+                box-shadow: inset -3px -3px 8px rgba(0, 0, 0, 0.3),
+                            0 0 14px rgba(255, 255, 255, 0.85);
+            }
+            50% {
+                box-shadow: inset -3px -3px 8px rgba(0, 0, 0, 0.3),
+                            0 0 26px rgba(255, 245, 157, 1);
+            }
         }
         .candy.color-bomb {
-            box-shadow: 0 0 15px #fff;
+            box-shadow: 0 0 18px #fff, inset 0 0 8px rgba(0, 0, 0, 0.2);
             border: 2px solid #fff;
+            animation: rainbowSpin 4s linear infinite;
+        }
+        @keyframes rainbowSpin {
+            from { filter: hue-rotate(0deg); }
+            to { filter: hue-rotate(360deg); }
+        }
+
+        /* combo banner */
+        .combo-banner {
+            position: fixed;
+            top: 38%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 56px;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 4px 20px rgba(216, 27, 96, 0.85),
+                         0 0 36px rgba(255, 100, 145, 0.7);
+            pointer-events: none;
+            z-index: 999;
+            opacity: 0;
+            letter-spacing: 1px;
+        }
+        .combo-banner.show {
+            animation: comboFloat 1s ease-out forwards;
+        }
+        @keyframes comboFloat {
+            0% { opacity: 0; transform: translate(-50%, -30%) scale(0.5) rotate(-8deg); }
+            25% { opacity: 1; transform: translate(-50%, -50%) scale(1.25) rotate(4deg); }
+            70% { opacity: 1; transform: translate(-50%, -55%) scale(1) rotate(0); }
+            100% { opacity: 0; transform: translate(-50%, -85%) scale(0.85); }
+        }
+
+        @media (max-width: 420px) {
+            h1 { font-size: 30px; }
+            .score-board { font-size: 18px; padding: 9px 24px; }
+            .grid {
+                width: calc(100vw - 32px);
+                max-width: 376px;
+                height: calc(100vw - 32px);
+                max-height: 376px;
+                padding: 6px;
+            }
+            .candy {
+                width: calc((100vw - 56px) / 8);
+                height: calc((100vw - 56px) / 8);
+                max-width: 42px;
+                max-height: 42px;
+                font-size: 18px;
+            }
+            .combo-banner { font-size: 42px; }
         }
     </style>
 </head>
 <body>
 
-    <h1>🍬 Sweet Match 🍭</h1>
+    <h1><span class="emoji">🍬</span> Sweet Match <span class="emoji">🍭</span></h1>
     <div class="score-board">分數: <span id="score">0</span></div>
     <div class="grid"></div>
+    <div class="combo-banner" id="comboBanner"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const grid = document.querySelector('.grid');
             const scoreDisplay = document.getElementById('score');
+            const scoreBoard = document.querySelector('.score-board');
+            const comboBanner = document.getElementById('comboBanner');
             const width = 8;
             const squares = [];
             let score = 0;
-            let lastMove = []; 
+            let lastMove = [];
+            let comboCount = 0;
+            let stableTicks = 0;
 
             const candyStyles = {
                 'red': 'radial-gradient(circle at 30% 30%, #ff8a80, #d50000)',
@@ -128,19 +303,19 @@
                     grid.appendChild(square);
                     squares.push(square);
                     let randomColor = colorKeys[Math.floor(Math.random() * colorKeys.length)];
-                    setCandy(i, randomColor, 'none');
+                    setCandy(i, randomColor, 'none', true);
                 }
             }
 
-            function setCandy(index, color, special) {
+            function setCandy(index, color, special, fresh = false) {
                 let sq = squares[index];
                 sq.dataset.color = color;
                 sq.dataset.special = special;
-                
-                sq.className = 'candy'; 
+
+                sq.className = 'candy';
                 sq.style.background = color ? candyStyles[color] : '';
                 sq.innerHTML = '';
-                
+
                 if (special === 'row') sq.classList.add('stripe-h');
                 if (special === 'col') sq.classList.add('stripe-v');
                 if (special === 'bomb') {
@@ -152,6 +327,15 @@
                     sq.style.background = 'conic-gradient(from 0deg, #ff5252, #ffeb3b, #4caf50, #2196f3, #9c27b0, #ff5252)';
                     sq.innerHTML = '🌈';
                 }
+                if (fresh) {
+                    sq.classList.add('fresh');
+                    sq.addEventListener('animationend', function onEnd(e) {
+                        if (e.animationName === 'spawn') {
+                            sq.classList.remove('fresh');
+                            sq.removeEventListener('animationend', onEnd);
+                        }
+                    });
+                }
             }
 
             function clearCandyBasic(index) {
@@ -160,6 +344,20 @@
                 squares[index].className = 'candy';
                 squares[index].style.background = '';
                 squares[index].innerHTML = '';
+            }
+
+            function bumpScore() {
+                scoreBoard.classList.remove('bump');
+                void scoreBoard.offsetWidth;
+                scoreBoard.classList.add('bump');
+            }
+
+            function showCombo(count) {
+                if (count < 2) return;
+                comboBanner.textContent = `Combo x${count}!`;
+                comboBanner.classList.remove('show');
+                void comboBanner.offsetWidth;
+                comboBanner.classList.add('show');
             }
 
             createBoard();
@@ -222,7 +420,7 @@
                         if (isColorBomb1 || isColorBomb2) {
                             let targetColor = isColorBomb1 ? color2 : color1;
                             let targetSpecial = isColorBomb1 ? spec2 : spec1;
-                            
+
                             clearCandyBasic(firstId);
                             clearCandyBasic(secondId);
 
@@ -288,7 +486,7 @@
                             let targetC = secondId % width;
                             for (let i = 0; i < width; i++) triggerClear(targetR * width + i);
                             for (let i = 0; i < width; i++) triggerClear(i * width + targetC);
-                            resetSelection(); return; 
+                            resetSelection(); return;
                         }
 
                         // --- 正常交換邏輯 ---
@@ -333,13 +531,13 @@
             // 引爆判定引擎
             function triggerClear(i) {
                 let color = squares[i].dataset.color;
-                if (!color) return; 
-                
+                if (!color) return;
+
                 let special = squares[i].dataset.special;
-                clearCandyBasic(i); 
+                clearCandyBasic(i);
                 score += 5;
                 scoreDisplay.innerHTML = score;
-                
+
                 let r = Math.floor(i / width);
                 let c = i % width;
 
@@ -384,7 +582,7 @@
                         let i = r * width + c;
                         let color = squares[i].dataset.color;
                         let nextColor = (c < width - 1) ? squares[i + 1].dataset.color : null;
-                        
+
                         if (color && color === nextColor) {
                             matchLength++;
                         } else {
@@ -404,7 +602,7 @@
                         let i = r * width + c;
                         let color = squares[i].dataset.color;
                         let nextColor = (r < width - 1) ? squares[i + width].dataset.color : null;
-                        
+
                         if (color && color === nextColor) {
                             matchLength++;
                         } else {
@@ -436,7 +634,7 @@
                 let processLine = (lineObj, type4) => {
                     if (lineObj.handled) return;
                     let len = lineObj.indices.length;
-                    
+
                     let targetIdx = lineObj.indices[Math.floor(len / 2)];
                     for (let idx of lineObj.indices) {
                         if (lastMove.includes(idx)) targetIdx = idx;
@@ -444,17 +642,17 @@
 
                     if (len >= 5) specialsToCreate.push({ index: targetIdx, color: lineObj.color, type: 'cross' });
                     else if (len === 4) specialsToCreate.push({ index: targetIdx, color: lineObj.color, type: type4 });
-                    
+
                     lineObj.indices.forEach(idx => matches.add(idx));
                 };
 
-                for (let h of hLines) processLine(h, 'col'); 
+                for (let h of hLines) processLine(h, 'col');
                 for (let v of vLines) processLine(v, 'row');
 
                 if (matches.size > 0) {
                     matches.forEach(idx => triggerClear(idx));
-                    specialsToCreate.forEach(s => setCandy(s.index, s.color, s.type));
-                    lastMove = []; 
+                    specialsToCreate.forEach(s => setCandy(s.index, s.color, s.type, true));
+                    lastMove = [];
                     return true;
                 }
                 return false;
@@ -468,7 +666,7 @@
                             for (let k = r - 1; k >= 0; k--) {
                                 let aboveIdx = k * width + c;
                                 if (squares[aboveIdx].dataset.color) {
-                                    setCandy(i, squares[aboveIdx].dataset.color, squares[aboveIdx].dataset.special);
+                                    setCandy(i, squares[aboveIdx].dataset.color, squares[aboveIdx].dataset.special, true);
                                     clearCandyBasic(aboveIdx);
                                     break;
                                 }
@@ -476,23 +674,33 @@
                         }
                     }
                 }
-                
+
                 for (let c = 0; c < width; c++) {
                     for (let r = 0; r < width; r++) {
                         let i = r * width + c;
                         if (!squares[i].dataset.color) {
                             let randomColor = colorKeys[Math.floor(Math.random() * colorKeys.length)];
-                            setCandy(i, randomColor, 'none');
+                            setCandy(i, randomColor, 'none', true);
                         }
                     }
                 }
             }
 
             window.setInterval(function() {
-                if (!checkMatches()) moveDown(); 
+                if (checkMatches()) {
+                    comboCount++;
+                    bumpScore();
+                    stableTicks = 0;
+                } else {
+                    moveDown();
+                    stableTicks++;
+                    if (stableTicks >= 2) {
+                        if (comboCount >= 2) showCombo(comboCount);
+                        comboCount = 0;
+                    }
+                }
             }, 200);
         });
     </script>
 </body>
 </html>
-
