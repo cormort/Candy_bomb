@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍬 Sweet Candy Match 🍭 - 終極連鎖版</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: repeating-linear-gradient(45deg, #ffe4e1, #ffe4e1 20px, #fff0f5 20px, #fff0f5 40px);
+            font-family: 'Comic Sans MS', 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        h1 {
+            color: #d81b60;
+            text-shadow: 2px 2px 0px #fff;
+            margin-bottom: 5px;
+            font-size: 36px;
+        }
+
+        .score-board {
+            font-size: 26px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #ff6491;
+            padding: 10px 30px;
+            border-radius: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            border: 3px solid #fff;
+        }
+
+        .grid {
+            display: flex;
+            flex-wrap: wrap;
+            width: 360px;
+            height: 360px;
+            background-color: rgba(255, 255, 255, 0.4);
+            border: 8px solid #fff;
+            border-radius: 16px;
+            padding: 5px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            backdrop-filter: blur(5px);
+        }
+
+        .candy {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-sizing: border-box;
+            box-shadow: inset -5px -5px 12px rgba(0,0,0,0.2), 
+                        inset 5px 5px 12px rgba(255,255,255,0.7), 
+                        0 4px 6px rgba(0,0,0,0.2);
+            transition: transform 0.2s, filter 0.2s, border-radius 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px; 
+            position: relative;
+            overflow: hidden;
+        }
+
+        .candy:hover { transform: scale(1.1); }
+        .selected {
+            transform: scale(1.15) !important;
+            filter: brightness(1.3);
+            box-shadow: 0 0 15px 5px #fff;
+        }
+
+        /* 特效樣式 */
+        .candy.stripe-h::after {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 8px, rgba(255,255,255,0.6) 8px, rgba(255,255,255,0.6) 16px);
+            pointer-events: none;
+        }
+        .candy.stripe-v::after {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(255,255,255,0.6) 8px, rgba(255,255,255,0.6) 16px);
+            pointer-events: none;
+        }
+        .candy.bomb {
+            border-radius: 35%;
+            border: 2px dashed #fff;
+            box-shadow: inset -3px -3px 8px rgba(0,0,0,0.3), 0 0 10px rgba(255,255,255,0.8);
+        }
+        .candy.color-bomb {
+            box-shadow: 0 0 15px #fff;
+            border: 2px solid #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🍬 Sweet Match 🍭</h1>
+    <div class="score-board">分數: <span id="score">0</span></div>
+    <div class="grid"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const grid = document.querySelector('.grid');
+            const scoreDisplay = document.getElementById('score');
+            const width = 8;
+            const squares = [];
+            let score = 0;
+            let lastMove = []; 
+
+            const candyStyles = {
+                'red': 'radial-gradient(circle at 30% 30%, #ff8a80, #d50000)',
+                'yellow': 'radial-gradient(circle at 30% 30%, #ffff8d, #fbc02d)',
+                'orange': 'radial-gradient(circle at 30% 30%, #ffd180, #f57c00)',
+                'purple': 'radial-gradient(circle at 30% 30%, #ea80fc, #aa00ff)',
+                'green': 'radial-gradient(circle at 30% 30%, #b9f6ca, #00c853)',
+                'blue': 'radial-gradient(circle at 30% 30%, #8c9eff, #2962ff)'
+            };
+            const colorKeys = Object.keys(candyStyles);
+
+            function createBoard() {
+                for (let i = 0; i < width * width; i++) {
+                    const square = document.createElement('div');
+                    square.setAttribute('id', i);
+                    grid.appendChild(square);
+                    squares.push(square);
+                    let randomColor = colorKeys[Math.floor(Math.random() * colorKeys.length)];
+                    setCandy(i, randomColor, 'none');
+                }
+            }
+
+            function setCandy(index, color, special) {
+                let sq = squares[index];
+                sq.dataset.color = color;
+                sq.dataset.special = special;
+                
+                sq.className = 'candy'; 
+                sq.style.background = color ? candyStyles[color] : '';
+                sq.innerHTML = '';
+                
+                if (special === 'row') sq.classList.add('stripe-h');
+                if (special === 'col') sq.classList.add('stripe-v');
+                if (special === 'bomb') {
+                    sq.classList.add('bomb');
+                    sq.innerHTML = '🍬';
+                }
+                if (special === 'cross') {
+                    sq.classList.add('color-bomb');
+                    sq.style.background = 'conic-gradient(from 0deg, #ff5252, #ffeb3b, #4caf50, #2196f3, #9c27b0, #ff5252)';
+                    sq.innerHTML = '🌈';
+                }
+            }
+
+            function clearCandyBasic(index) {
+                squares[index].dataset.color = '';
+                squares[index].dataset.special = 'none';
+                squares[index].className = 'candy';
+                squares[index].style.background = '';
+                squares[index].innerHTML = '';
+            }
+
+            createBoard();
+
+            let selectedSquare = null;
+            squares.forEach(square => square.addEventListener('click', handleSquareClick));
+
+            function handleSquareClick() {
+                if (!selectedSquare) {
+                    selectedSquare = this;
+                    this.classList.add('selected');
+                } else {
+                    let firstId = parseInt(selectedSquare.id);
+                    let secondId = parseInt(this.id);
+
+                    // ==========================================
+                    // 1. 雙擊特殊炸彈直接引爆邏輯
+                    // ==========================================
+                    if (firstId === secondId) {
+                        let spec = selectedSquare.dataset.special;
+                        if (spec !== 'none') {
+                            // 點擊兩次特殊道具，直接觸發爆炸！
+                            triggerClear(firstId);
+                        }
+                        resetSelection();
+                        return;
+                    }
+
+                    // 檢查合法移動邊界
+                    let validMoves = [firstId - 1, firstId - width, firstId + 1, firstId + width];
+                    if (firstId % width === 0) validMoves = validMoves.filter(m => m !== firstId - 1);
+                    if (firstId % width === width - 1) validMoves = validMoves.filter(m => m !== firstId + 1);
+
+                    if (validMoves.includes(secondId)) {
+                        let color1 = selectedSquare.dataset.color;
+                        let spec1 = selectedSquare.dataset.special;
+                        let color2 = this.dataset.color;
+                        let spec2 = this.dataset.special;
+
+                        let isStriped1 = (spec1 === 'row' || spec1 === 'col');
+                        let isStriped2 = (spec2 === 'row' || spec2 === 'col');
+                        let isBomb1 = (spec1 === 'bomb');
+                        let isBomb2 = (spec2 === 'bomb');
+                        let isColorBomb1 = (spec1 === 'cross');
+                        let isColorBomb2 = (spec2 === 'cross');
+
+                        // ==========================================
+                        // Combo 1: 雙彩虹炸彈 (清除全畫面)
+                        // ==========================================
+                        if (isColorBomb1 && isColorBomb2) {
+                            clearCandyBasic(firstId);
+                            clearCandyBasic(secondId);
+                            for (let i = 0; i < width * width; i++) triggerClear(i);
+                            resetSelection(); return;
+                        }
+
+                        // ==========================================
+                        // Combo 2: 彩虹炸彈 + 特殊/普通糖果 (感染機制)
+                        // ==========================================
+                        if (isColorBomb1 || isColorBomb2) {
+                            let targetColor = isColorBomb1 ? color2 : color1;
+                            let targetSpecial = isColorBomb1 ? spec2 : spec1;
+                            
+                            clearCandyBasic(firstId);
+                            clearCandyBasic(secondId);
+
+                            // 若目標是特殊糖果，全場同色糖果跟著「升級」
+                            if (targetSpecial !== 'none' && targetSpecial !== 'cross') {
+                                for (let i = 0; i < width * width; i++) {
+                                    if (squares[i].dataset.color === targetColor) {
+                                        let spawn = targetSpecial;
+                                        // 條紋糖果感染時，隨機賦予直向或橫向
+                                        if (targetSpecial === 'row' || targetSpecial === 'col') {
+                                            spawn = Math.random() > 0.5 ? 'row' : 'col';
+                                        }
+                                        setCandy(i, targetColor, spawn);
+                                    }
+                                }
+                            }
+
+                            // 將全場目標顏色的糖果統一引爆！
+                            for (let i = 0; i < width * width; i++) {
+                                if (squares[i].dataset.color === targetColor) triggerClear(i);
+                            }
+                            resetSelection(); return;
+                        }
+
+                        // Combo 3: 雙包裝炸彈 (巨大 5x5 爆破)
+                        if (isBomb1 && isBomb2) {
+                            clearCandyBasic(firstId);
+                            clearCandyBasic(secondId);
+                            let targetR = Math.floor(secondId / width);
+                            let targetC = secondId % width;
+                            for (let r = targetR - 2; r <= targetR + 2; r++) {
+                                for (let c = targetC - 2; c <= targetC + 2; c++) {
+                                    if (r >= 0 && r < width && c >= 0 && c < width) triggerClear(r * width + c);
+                                }
+                            }
+                            resetSelection(); return;
+                        }
+
+                        // Combo 4: 包裝 + 方向 (十字炸 3 排)
+                        if ((isStriped1 && isBomb2) || (isBomb1 && isStriped2)) {
+                            clearCandyBasic(firstId);
+                            clearCandyBasic(secondId);
+                            let targetR = Math.floor(secondId / width);
+                            let targetC = secondId % width;
+                            for (let r = targetR - 1; r <= targetR + 1; r++) {
+                                if (r >= 0 && r < width) {
+                                    for (let c = 0; c < width; c++) triggerClear(r * width + c);
+                                }
+                            }
+                            for (let c = targetC - 1; c <= targetC + 1; c++) {
+                                if (c >= 0 && c < width) {
+                                    for (let r = 0; r < width; r++) triggerClear(r * width + c);
+                                }
+                            }
+                            resetSelection(); return;
+                        }
+
+                        // Combo 5: 雙方向 (十字炸 1 排)
+                        if (isStriped1 && isStriped2) {
+                            clearCandyBasic(firstId);
+                            clearCandyBasic(secondId);
+                            let targetR = Math.floor(secondId / width);
+                            let targetC = secondId % width;
+                            for (let i = 0; i < width; i++) triggerClear(targetR * width + i);
+                            for (let i = 0; i < width; i++) triggerClear(i * width + targetC);
+                            resetSelection(); return; 
+                        }
+
+                        // --- 正常交換邏輯 ---
+                        setCandy(firstId, color2, spec2);
+                        setCandy(secondId, color1, spec1);
+                        lastMove = [firstId, secondId];
+
+                        if (!hasAnyMatch()) {
+                            setTimeout(() => {
+                                setCandy(firstId, color1, spec1);
+                                setCandy(secondId, color2, spec2);
+                            }, 300);
+                        }
+                    }
+                    resetSelection();
+                }
+            }
+
+            function resetSelection() {
+                if (selectedSquare) selectedSquare.classList.remove('selected');
+                selectedSquare = null;
+            }
+
+            function hasAnyMatch() {
+                for (let r = 0; r < width; r++) {
+                    for (let c = 0; c < width - 2; c++) {
+                        let i = r * width + c;
+                        let col = squares[i].dataset.color;
+                        if (col && col === squares[i + 1].dataset.color && col === squares[i + 2].dataset.color) return true;
+                    }
+                }
+                for (let c = 0; c < width; c++) {
+                    for (let r = 0; r < width - 2; r++) {
+                        let i = r * width + c;
+                        let col = squares[i].dataset.color;
+                        if (col && col === squares[i + width].dataset.color && col === squares[i + width * 2].dataset.color) return true;
+                    }
+                }
+                return false;
+            }
+
+            // 引爆判定引擎
+            function triggerClear(i) {
+                let color = squares[i].dataset.color;
+                if (!color) return; 
+                
+                let special = squares[i].dataset.special;
+                clearCandyBasic(i); 
+                score += 5;
+                scoreDisplay.innerHTML = score;
+                
+                let r = Math.floor(i / width);
+                let c = i % width;
+
+                if (special === 'row') {
+                    for (let col = 0; col < width; col++) triggerClear(r * width + col);
+                } else if (special === 'col') {
+                    for (let row = 0; row < width; row++) triggerClear(row * width + c);
+                } else if (special === 'bomb') {
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            let nr = r + dr;
+                            let nc = c + dc;
+                            if (nr >= 0 && nr < width && nc >= 0 && nc < width) {
+                                triggerClear(nr * width + nc);
+                            }
+                        }
+                    }
+                } else if (special === 'cross') {
+                    let available = [];
+                    for (let idx = 0; idx < width * width; idx++) {
+                        let col = squares[idx].dataset.color;
+                        if (col && !available.includes(col)) available.push(col);
+                    }
+                    if (available.length > 0) {
+                        let randColor = available[Math.floor(Math.random() * available.length)];
+                        for (let idx = 0; idx < width * width; idx++) {
+                            if (squares[idx].dataset.color === randColor) triggerClear(idx);
+                        }
+                    }
+                }
+            }
+
+            function checkMatches() {
+                let matches = new Set();
+                let specialsToCreate = [];
+                let hLines = [];
+                let vLines = [];
+
+                for (let r = 0; r < width; r++) {
+                    let matchLength = 1;
+                    for (let c = 0; c < width; c++) {
+                        let i = r * width + c;
+                        let color = squares[i].dataset.color;
+                        let nextColor = (c < width - 1) ? squares[i + 1].dataset.color : null;
+                        
+                        if (color && color === nextColor) {
+                            matchLength++;
+                        } else {
+                            if (matchLength >= 3) {
+                                let line = [];
+                                for (let k = 0; k < matchLength; k++) line.push(i - k);
+                                hLines.push({ color: color, indices: line, handled: false });
+                            }
+                            matchLength = 1;
+                        }
+                    }
+                }
+
+                for (let c = 0; c < width; c++) {
+                    let matchLength = 1;
+                    for (let r = 0; r < width; r++) {
+                        let i = r * width + c;
+                        let color = squares[i].dataset.color;
+                        let nextColor = (r < width - 1) ? squares[i + width].dataset.color : null;
+                        
+                        if (color && color === nextColor) {
+                            matchLength++;
+                        } else {
+                            if (matchLength >= 3) {
+                                let line = [];
+                                for (let k = 0; k < matchLength; k++) line.push(i - k * width);
+                                vLines.push({ color: color, indices: line, handled: false });
+                            }
+                            matchLength = 1;
+                        }
+                    }
+                }
+
+                for (let h of hLines) {
+                    for (let v of vLines) {
+                        if (h.color === v.color && !h.handled && !v.handled) {
+                            let intersect = h.indices.find(idx => v.indices.includes(idx));
+                            if (intersect !== undefined) {
+                                h.handled = true;
+                                v.handled = true;
+                                specialsToCreate.push({ index: intersect, color: h.color, type: 'bomb' });
+                                h.indices.forEach(idx => matches.add(idx));
+                                v.indices.forEach(idx => matches.add(idx));
+                            }
+                        }
+                    }
+                }
+
+                let processLine = (lineObj, type4) => {
+                    if (lineObj.handled) return;
+                    let len = lineObj.indices.length;
+                    
+                    let targetIdx = lineObj.indices[Math.floor(len / 2)];
+                    for (let idx of lineObj.indices) {
+                        if (lastMove.includes(idx)) targetIdx = idx;
+                    }
+
+                    if (len >= 5) specialsToCreate.push({ index: targetIdx, color: lineObj.color, type: 'cross' });
+                    else if (len === 4) specialsToCreate.push({ index: targetIdx, color: lineObj.color, type: type4 });
+                    
+                    lineObj.indices.forEach(idx => matches.add(idx));
+                };
+
+                for (let h of hLines) processLine(h, 'col'); 
+                for (let v of vLines) processLine(v, 'row');
+
+                if (matches.size > 0) {
+                    matches.forEach(idx => triggerClear(idx));
+                    specialsToCreate.forEach(s => setCandy(s.index, s.color, s.type));
+                    lastMove = []; 
+                    return true;
+                }
+                return false;
+            }
+
+            function moveDown() {
+                for (let c = 0; c < width; c++) {
+                    for (let r = width - 1; r >= 0; r--) {
+                        let i = r * width + c;
+                        if (!squares[i].dataset.color) {
+                            for (let k = r - 1; k >= 0; k--) {
+                                let aboveIdx = k * width + c;
+                                if (squares[aboveIdx].dataset.color) {
+                                    setCandy(i, squares[aboveIdx].dataset.color, squares[aboveIdx].dataset.special);
+                                    clearCandyBasic(aboveIdx);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                for (let c = 0; c < width; c++) {
+                    for (let r = 0; r < width; r++) {
+                        let i = r * width + c;
+                        if (!squares[i].dataset.color) {
+                            let randomColor = colorKeys[Math.floor(Math.random() * colorKeys.length)];
+                            setCandy(i, randomColor, 'none');
+                        }
+                    }
+                }
+            }
+
+            window.setInterval(function() {
+                if (!checkMatches()) moveDown(); 
+            }, 200);
+        });
+    </script>
+</body>
+</html>
+
