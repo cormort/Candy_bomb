@@ -2,705 +2,980 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍬 Sweet Candy Match 🍭 - 終極連鎖版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🍬 Sweet Candy Match 🍭</title>
     <style>
         :root {
-            --accent: #d81b60;
-            --accent-2: #ec407a;
-            --accent-3: #ff6491;
+            --board-size: 8;
+            --cell-size: 45px;
+            --gap: 2px;
+            --board-padding: 8px;
+            --bg-blur: 70px;
+            --anim-fast: 120ms;
+            --anim-mid: 180ms;
+            --anim-slow: 280ms;
+        }
+
+        @media (max-width: 420px) {
+            :root {
+                --cell-size: calc((100vw - 40px - var(--board-padding) * 2 - var(--gap) * (var(--board-size) - 1)) / var(--board-size));
+                --bg-blur: 24px;
+            }
         }
 
         * { box-sizing: border-box; }
 
         body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            display: flex; flex-direction: column; align-items: center;
             background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 45%, #c8a2c8 100%);
             background-attachment: fixed;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
-            margin: 0;
-            padding: 24px 16px 40px;
-            min-height: 100vh;
-            touch-action: manipulation;
-            user-select: none;
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0; padding: 20px 10px; min-height: 100vh;
+            touch-action: none; user-select: none;
             -webkit-tap-highlight-color: transparent;
-            overflow-x: hidden;
-            position: relative;
+            overflow: hidden; position: relative;
         }
 
-        body::before,
-        body::after {
-            content: '';
-            position: fixed;
-            border-radius: 50%;
-            filter: blur(70px);
-            z-index: 0;
-            pointer-events: none;
+        body::before, body::after {
+            content: ''; position: fixed; border-radius: 50%;
+            filter: blur(var(--bg-blur)); z-index: 0; pointer-events: none;
+            animation: float 9s ease-in-out infinite;
         }
         body::before {
             width: 360px; height: 360px;
             background: radial-gradient(circle, rgba(255, 138, 128, 0.65), transparent 70%);
             top: -100px; left: -100px;
-            animation: float 9s ease-in-out infinite;
         }
         body::after {
             width: 320px; height: 320px;
             background: radial-gradient(circle, rgba(170, 0, 255, 0.45), transparent 70%);
-            bottom: -100px; right: -100px;
-            animation: float 11s ease-in-out infinite reverse;
+            bottom: -100px; right: -100px; animation-delay: -2s;
         }
 
         @keyframes float {
-            0%, 100% { transform: translate(0, 0) rotate(0); }
-            50% { transform: translate(30px, -25px) rotate(20deg); }
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(30px, -20px); }
         }
 
-        h1 {
-            color: #fff;
-            font-weight: 800;
-            margin: 8px 0 18px;
-            font-size: 40px;
-            letter-spacing: 0.5px;
-            text-align: center;
-            text-shadow: 0 2px 0 rgba(216, 27, 96, 0.4),
-                         0 6px 28px rgba(216, 27, 96, 0.5);
-            z-index: 1;
-            position: relative;
+        .hud {
+            display: flex; justify-content: space-between; gap: 8px;
+            width: 100%; max-width: 400px; margin-bottom: 20px;
+            color: white; z-index: 10;
         }
-        h1 .emoji {
-            display: inline-block;
-            animation: wiggle 2.4s ease-in-out infinite;
-        }
-        h1 .emoji:last-child { animation-delay: 0.3s; }
-        @keyframes wiggle {
-            0%, 100% { transform: rotate(0); }
-            25% { transform: rotate(-12deg); }
-            75% { transform: rotate(12deg); }
-        }
-
-        .score-board {
-            font-size: 22px;
-            font-weight: 700;
-            color: #fff;
+        .hud-box {
+            flex: 1;
             background: linear-gradient(135deg, #ff6491, #d81b60);
-            padding: 10px 32px;
-            border-radius: 999px;
-            box-shadow: 0 10px 28px rgba(216, 27, 96, 0.4),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.55);
-            margin-bottom: 22px;
+            padding: 8px 12px; border-radius: 20px; text-align: center;
             border: 2px solid rgba(255, 255, 255, 0.7);
-            z-index: 1;
-            position: relative;
-            letter-spacing: 0.5px;
+            box-shadow: 0 8px 20px rgba(216, 27, 96, 0.3);
         }
-        .score-board #score {
-            display: inline-block;
-            min-width: 30px;
-            text-align: left;
-            transition: transform 0.18s ease;
-        }
-        .score-board.bump #score {
-            animation: scoreBump 0.45s ease-out;
-        }
-        @keyframes scoreBump {
-            0%, 100% { transform: scale(1); color: #fff; text-shadow: none; }
-            45% {
-                transform: scale(1.45);
-                color: #fff59d;
-                text-shadow: 0 0 12px rgba(255, 245, 157, 0.9);
-            }
-        }
+        .hud-box label { font-size: 12px; opacity: 0.9; display: block; }
+        .hud-box span { font-size: 22px; font-weight: bold; transition: transform var(--anim-fast); display: inline-block; }
+        .hud-box span.bump { transform: scale(1.3); }
+
+        .game-container { position: relative; z-index: 5; }
 
         .grid {
-            display: flex;
-            flex-wrap: wrap;
-            width: 380px;
-            height: 380px;
+            display: grid;
+            grid-template-columns: repeat(var(--board-size), var(--cell-size));
+            grid-template-rows: repeat(var(--board-size), var(--cell-size));
+            gap: var(--gap);
             background: rgba(255, 255, 255, 0.22);
+            padding: var(--board-padding); border-radius: 24px;
             border: 2px solid rgba(255, 255, 255, 0.55);
-            border-radius: 24px;
-            padding: 8px;
-            box-shadow: 0 24px 60px rgba(216, 27, 96, 0.28),
+            box-shadow: 0 24px 60px rgba(216, 27, 96, 0.2),
                         inset 0 1px 0 rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            z-index: 1;
-            position: relative;
+            backdrop-filter: blur(var(--bg-blur));
         }
 
         .candy {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            cursor: pointer;
-            box-sizing: border-box;
+            width: 100%; height: 100%; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; cursor: pointer; position: relative;
             box-shadow: inset -5px -5px 12px rgba(0, 0, 0, 0.22),
                         inset 5px 5px 12px rgba(255, 255, 255, 0.75),
                         0 4px 8px rgba(0, 0, 0, 0.18);
-            transition: transform 0.18s ease, filter 0.18s, box-shadow 0.18s, border-radius 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            position: relative;
-            overflow: hidden;
-        }
-        .candy:hover {
-            transform: scale(1.08);
-            filter: brightness(1.05);
-        }
-        .candy.fresh {
-            animation: spawn 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        @keyframes spawn {
-            0% { transform: translateY(-30px) scale(0.4); opacity: 0; }
-            60% { transform: translateY(0) scale(1.12); opacity: 1; }
-            100% { transform: translateY(0) scale(1); }
+            will-change: transform, opacity;
+            transition: transform var(--anim-mid) cubic-bezier(0.2, 0.8, 0.2, 1),
+                        opacity var(--anim-fast) ease;
         }
 
-        .selected {
-            transform: scale(1.15) !important;
-            filter: brightness(1.25);
-            animation: pulse 0.85s ease-in-out infinite;
-            z-index: 2;
+        @media (hover: hover) {
+            .candy:hover { transform: scale(1.08); filter: brightness(1.05); }
+        }
+
+        .candy.red    { background: radial-gradient(circle at 30% 30%, #ff8a80, #d50000); }
+        .candy.yellow { background: radial-gradient(circle at 30% 30%, #ffff8d, #fbc02d); }
+        .candy.orange { background: radial-gradient(circle at 30% 30%, #ffd180, #f57c00); }
+        .candy.purple { background: radial-gradient(circle at 30% 30%, #ea80fc, #aa00ff); }
+        .candy.green  { background: radial-gradient(circle at 30% 30%, #b9f6ca, #00c853); }
+        .candy.blue   { background: radial-gradient(circle at 30% 30%, #8c9eff, #2962ff); }
+
+        .candy.empty { opacity: 0; pointer-events: none; transform: scale(0.4); }
+
+        .candy.selected {
+            transform: scale(1.15); z-index: 2;
+            animation: pulse 1s ease-in-out infinite;
         }
         @keyframes pulse {
-            0%, 100% {
-                box-shadow: 0 0 14px 3px rgba(255, 255, 255, 0.7),
-                            inset -5px -5px 12px rgba(0, 0, 0, 0.22),
-                            inset 5px 5px 12px rgba(255, 255, 255, 0.75);
-            }
-            50% {
-                box-shadow: 0 0 28px 10px rgba(255, 255, 255, 1),
-                            inset -5px -5px 12px rgba(0, 0, 0, 0.22),
-                            inset 5px 5px 12px rgba(255, 255, 255, 0.75);
-            }
+            0%, 100% { box-shadow: 0 0 14px 3px rgba(255, 255, 255, 0.7),
+                                   inset -5px -5px 12px rgba(0, 0, 0, 0.22),
+                                   inset 5px 5px 12px rgba(255, 255, 255, 0.75); }
+            50%      { box-shadow: 0 0 28px 10px rgba(255, 255, 255, 1),
+                                   inset -5px -5px 12px rgba(0, 0, 0, 0.22),
+                                   inset 5px 5px 12px rgba(255, 255, 255, 0.75); }
         }
 
-        /* 特效樣式 */
-        .candy.stripe-h::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: repeating-linear-gradient(0deg, transparent, transparent 8px, rgba(255, 255, 255, 0.65) 8px, rgba(255, 255, 255, 0.65) 16px);
-            pointer-events: none;
+        .candy.row::after, .candy.col::after {
+            content: ''; position: absolute; inset: 0;
+            border-radius: 50%; pointer-events: none;
         }
-        .candy.stripe-v::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(255, 255, 255, 0.65) 8px, rgba(255, 255, 255, 0.65) 16px);
-            pointer-events: none;
+        .candy.row::after {
+            background: repeating-linear-gradient(0deg,
+                transparent, transparent 8px,
+                rgba(255, 255, 255, 0.65) 8px, rgba(255, 255, 255, 0.65) 16px);
         }
+        .candy.col::after {
+            background: repeating-linear-gradient(90deg,
+                transparent, transparent 8px,
+                rgba(255, 255, 255, 0.65) 8px, rgba(255, 255, 255, 0.65) 16px);
+        }
+
         .candy.bomb {
             border-radius: 35%;
-            border: 2px dashed #fff;
+            border: 2px dashed rgba(255, 255, 255, 0.8);
             animation: bombGlow 1.4s ease-in-out infinite;
         }
         @keyframes bombGlow {
-            0%, 100% {
-                box-shadow: inset -3px -3px 8px rgba(0, 0, 0, 0.3),
-                            0 0 14px rgba(255, 255, 255, 0.85);
-            }
-            50% {
-                box-shadow: inset -3px -3px 8px rgba(0, 0, 0, 0.3),
-                            0 0 26px rgba(255, 245, 157, 1);
-            }
+            0%, 100% { box-shadow: inset -3px -3px 8px rgba(0, 0, 0, 0.3),
+                                   0 0 14px rgba(255, 255, 255, 0.8); }
+            50%      { box-shadow: inset -3px -3px 8px rgba(0, 0, 0, 0.3),
+                                   0 0 26px rgba(255, 245, 157, 1); }
         }
-        .candy.color-bomb {
-            box-shadow: 0 0 18px #fff, inset 0 0 8px rgba(0, 0, 0, 0.2);
-            border: 2px solid #fff;
-            animation: rainbowSpin 4s linear infinite;
+
+        .candy.cross {
+            background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red) !important;
+            border: 2px solid white;
+            animation: rainbowSpin 3s linear infinite;
         }
         @keyframes rainbowSpin {
             from { filter: hue-rotate(0deg); }
-            to { filter: hue-rotate(360deg); }
+            to   { filter: hue-rotate(360deg); }
         }
 
-        /* combo banner */
+        #particles {
+            position: absolute; inset: 0;
+            pointer-events: none; z-index: 20;
+        }
+
         .combo-banner {
-            position: fixed;
-            top: 38%;
-            left: 50%;
+            position: fixed; top: 38%; left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 56px;
-            font-weight: 900;
-            color: #fff;
-            text-shadow: 0 4px 20px rgba(216, 27, 96, 0.85),
-                         0 0 36px rgba(255, 100, 145, 0.7);
-            pointer-events: none;
-            z-index: 999;
-            opacity: 0;
-            letter-spacing: 1px;
+            font-size: 56px; font-weight: 900; color: #fff;
+            text-shadow: 0 4px 20px rgba(216, 27, 96, 0.85);
+            pointer-events: none; z-index: 999; opacity: 0;
         }
-        .combo-banner.show {
-            animation: comboFloat 1s ease-out forwards;
-        }
+        .combo-banner.show { animation: comboFloat 1s ease-out forwards; }
         @keyframes comboFloat {
-            0% { opacity: 0; transform: translate(-50%, -30%) scale(0.5) rotate(-8deg); }
-            25% { opacity: 1; transform: translate(-50%, -50%) scale(1.25) rotate(4deg); }
-            70% { opacity: 1; transform: translate(-50%, -55%) scale(1) rotate(0); }
+            0%   { opacity: 0; transform: translate(-50%, -30%) scale(0.5); }
+            25%  { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            70%  { opacity: 1; transform: translate(-50%, -55%) scale(1); }
             100% { opacity: 0; transform: translate(-50%, -85%) scale(0.85); }
         }
 
+        .shake-screen { animation: shake 0.3s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25%      { transform: translateX(-6px); }
+            75%      { transform: translateX(6px); }
+        }
+
+        .candy.fresh { animation: spawn var(--anim-slow) cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes spawn {
+            0%   { transform: translateY(-50px) scale(0.4); opacity: 0; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        .candy.clearing { animation: clearPop var(--anim-fast) ease-out forwards; }
+        @keyframes clearPop {
+            0%   { transform: scale(1); opacity: 1; }
+            50%  { transform: scale(1.25); opacity: 0.9; }
+            100% { transform: scale(0.2); opacity: 0; }
+        }
+
         @media (max-width: 420px) {
-            h1 { font-size: 30px; }
-            .score-board { font-size: 18px; padding: 9px 24px; }
-            .grid {
-                width: calc(100vw - 32px);
-                max-width: 380px;
-                height: calc(100vw - 32px);
-                max-height: 380px;
-                padding: 6px;
-            }
-            .candy {
-                width: calc((100vw - 48px) / 8);
-                height: calc((100vw - 48px) / 8);
-                max-width: 45px;
-                max-height: 45px;
-                font-size: 18px;
-            }
             .combo-banner { font-size: 42px; }
+            .hud-box span { font-size: 18px; }
         }
     </style>
 </head>
 <body>
 
-    <h1><span class="emoji">🍬</span> Sweet Match <span class="emoji">🍭</span></h1>
-    <div class="score-board">分數: <span id="score">0</span></div>
-    <div class="grid"></div>
+    <div class="hud">
+        <div class="hud-box"><label>SCORE</label><span id="score">0</span></div>
+        <div class="hud-box"><label>BEST</label><span id="best-score">0</span></div>
+        <div class="hud-box"><label>COMBO</label><span id="combo">0</span></div>
+    </div>
+
+    <div class="game-container" id="game-container">
+        <div class="grid" id="grid"></div>
+        <canvas id="particles"></canvas>
+    </div>
     <div class="combo-banner" id="comboBanner"></div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const grid = document.querySelector('.grid');
-            const scoreDisplay = document.getElementById('score');
-            const scoreBoard = document.querySelector('.score-board');
-            const comboBanner = document.getElementById('comboBanner');
-            const width = 8;
-            const squares = [];
-            let score = 0;
-            let lastMove = [];
-            let comboCount = 0;
-            let stableTicks = 0;
+    'use strict';
 
-            const candyStyles = {
-                'red': 'radial-gradient(circle at 30% 30%, #ff8a80, #d50000)',
-                'yellow': 'radial-gradient(circle at 30% 30%, #ffff8d, #fbc02d)',
-                'orange': 'radial-gradient(circle at 30% 30%, #ffd180, #f57c00)',
-                'purple': 'radial-gradient(circle at 30% 30%, #ea80fc, #aa00ff)',
-                'green': 'radial-gradient(circle at 30% 30%, #b9f6ca, #00c853)',
-                'blue': 'radial-gradient(circle at 30% 30%, #8c9eff, #2962ff)'
-            };
-            const colorKeys = Object.keys(candyStyles);
+    // ============================================================
+    // Config — single source of truth
+    // ============================================================
+    const Config = Object.freeze({
+        width: 8,
+        height: 8,
+        colors: ['red', 'yellow', 'orange', 'purple', 'green', 'blue'],
+        colorHex: {
+            red: '#d50000', yellow: '#fbc02d', orange: '#f57c00',
+            purple: '#aa00ff', green: '#00c853', blue: '#2962ff'
+        },
+        timing: {
+            swap: 180,     // 交換動畫
+            clear: 220,    // 消除動畫（要等 .clearing 動畫跑完）
+            drop: 240,     // 掉落動畫
+            quick: 80      // combo 加速時的最短間隔
+        },
+        scoring: {
+            base: 10,
+            comboBonus: 0.25,    // 每層 combo 加成
+            specialBonus: 50     // 觸發特殊糖果額外分數
+        },
+        particles: {
+            count: 14,
+            spread: 11,
+            gravity: 0.4,
+            decay: 0.04
+        },
+        swipeThreshold: 20,
+        bestScoreKey: 'sweetCandy_bestScore_v3'
+    });
 
-            function createBoard() {
-                for (let i = 0; i < width * width; i++) {
-                    const square = document.createElement('div');
-                    square.setAttribute('id', i);
-                    grid.appendChild(square);
-                    squares.push(square);
-                    let randomColor = colorKeys[Math.floor(Math.random() * colorKeys.length)];
-                    setCandy(i, randomColor, 'none', true);
+    const SPECIAL = Object.freeze({
+        NONE: 'none',
+        ROW: 'row',
+        COL: 'col',
+        BOMB: 'bomb',
+        CROSS: 'cross'
+    });
+
+    // ============================================================
+    // Utils
+    // ============================================================
+    const Utils = {
+        delay: ms => new Promise(r => setTimeout(r, ms)),
+        randomColor: () => Config.colors[Math.floor(Math.random() * Config.colors.length)],
+        randomColorExcept: (...exclude) => {
+            const pool = Config.colors.filter(c => !exclude.includes(c));
+            return pool[Math.floor(Math.random() * pool.length)];
+        },
+        clamp: (v, lo, hi) => Math.max(lo, Math.min(hi, v)),
+        inBounds: (r, c) => r >= 0 && r < Config.height && c >= 0 && c < Config.width,
+        idx: (r, c) => r * Config.width + c,
+        rcOf: i => [Math.floor(i / Config.width), i % Config.width]
+    };
+
+    // ============================================================
+    // Particle Engine — 視覺效果
+    // ============================================================
+    class ParticleEngine {
+        constructor(canvas, container) {
+            this.canvas = canvas;
+            this.ctx = canvas.getContext('2d');
+            this.container = container;
+            this.particles = [];
+            this.resize();
+            this._onResize = () => this.resize();
+            window.addEventListener('resize', this._onResize);
+            this._tick = this._tick.bind(this);
+            requestAnimationFrame(this._tick);
+        }
+        resize() {
+            const dpr = window.devicePixelRatio || 1;
+            const w = this.container.offsetWidth;
+            const h = this.container.offsetHeight;
+            this.canvas.width = w * dpr;
+            this.canvas.height = h * dpr;
+            this.canvas.style.width = w + 'px';
+            this.canvas.style.height = h + 'px';
+            this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        emit(x, y, colorName) {
+            const color = Config.colorHex[colorName] || '#ffffff';
+            const { count, spread } = Config.particles;
+            for (let i = 0; i < count; i++) {
+                this.particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * spread,
+                    vy: (Math.random() - 0.5) * spread,
+                    life: 1,
+                    color,
+                    size: Math.random() * 4 + 2
+                });
+            }
+        }
+        _tick() {
+            const { ctx } = this;
+            const { gravity, decay } = Config.particles;
+            ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            for (let i = this.particles.length - 1; i >= 0; i--) {
+                const p = this.particles[i];
+                p.x += p.vx; p.y += p.vy; p.vy += gravity; p.life -= decay;
+                if (p.life <= 0) { this.particles.splice(i, 1); continue; }
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            requestAnimationFrame(this._tick);
+        }
+    }
+
+    // ============================================================
+    // Board — 純資料模型，無 DOM 依賴
+    // ============================================================
+    class Board {
+        constructor() {
+            this.data = new Array(Config.width * Config.height);
+            this.fillNoMatches();
+        }
+
+        // 開局填滿、確保沒有預設三連
+        fillNoMatches() {
+            for (let r = 0; r < Config.height; r++) {
+                for (let c = 0; c < Config.width; c++) {
+                    const exclude = [];
+                    if (c >= 2) {
+                        const a = this.get(r, c - 1), b = this.get(r, c - 2);
+                        if (a && b && a.color === b.color) exclude.push(a.color);
+                    }
+                    if (r >= 2) {
+                        const a = this.get(r - 1, c), b = this.get(r - 2, c);
+                        if (a && b && a.color === b.color) exclude.push(a.color);
+                    }
+                    this.set(r, c, this.makeNormal(Utils.randomColorExcept(...exclude)));
+                }
+            }
+        }
+
+        makeNormal(color = Utils.randomColor()) {
+            return { color, special: SPECIAL.NONE, empty: false, fresh: true };
+        }
+
+        makeEmpty() {
+            return { color: '', special: SPECIAL.NONE, empty: true, fresh: false };
+        }
+
+        get(r, c) {
+            if (!Utils.inBounds(r, c)) return null;
+            return this.data[Utils.idx(r, c)];
+        }
+        set(r, c, val) {
+            if (Utils.inBounds(r, c)) this.data[Utils.idx(r, c)] = val;
+        }
+        swap(r1, c1, r2, c2) {
+            const i1 = Utils.idx(r1, c1), i2 = Utils.idx(r2, c2);
+            [this.data[i1], this.data[i2]] = [this.data[i2], this.data[i1]];
+        }
+    }
+
+    // ============================================================
+    // Match Finder — 偵測連線並決定要產生哪種特殊糖果
+    // ============================================================
+    class MatchFinder {
+        constructor(board) { this.board = board; }
+
+        // 回傳 { matched: Set<idx>, specials: [{r, c, type, color}] }
+        find() {
+            const matched = new Set();
+            const runs = []; // { cells: [...{r,c}], color, dir: 'h'|'v' }
+
+            // 水平掃描
+            for (let r = 0; r < Config.height; r++) {
+                let runStart = 0;
+                for (let c = 1; c <= Config.width; c++) {
+                    const prev = this.board.get(r, c - 1);
+                    const cur = c < Config.width ? this.board.get(r, c) : null;
+                    const same = cur && prev && !prev.empty && !cur.empty && cur.color === prev.color;
+                    if (!same) {
+                        const len = c - runStart;
+                        if (len >= 3 && prev && !prev.empty) {
+                            const cells = [];
+                            for (let k = runStart; k < c; k++) {
+                                cells.push({ r, c: k });
+                                matched.add(Utils.idx(r, k));
+                            }
+                            runs.push({ cells, color: prev.color, dir: 'h' });
+                        }
+                        runStart = c;
+                    }
                 }
             }
 
-            function setCandy(index, color, special, fresh = false) {
-                let sq = squares[index];
-                sq.dataset.color = color;
-                sq.dataset.special = special;
-
-                sq.className = 'candy';
-                sq.style.background = color ? candyStyles[color] : '';
-                sq.innerHTML = '';
-
-                if (special === 'row') sq.classList.add('stripe-h');
-                if (special === 'col') sq.classList.add('stripe-v');
-                if (special === 'bomb') {
-                    sq.classList.add('bomb');
-                    sq.innerHTML = '🍬';
-                }
-                if (special === 'cross') {
-                    sq.classList.add('color-bomb');
-                    sq.style.background = 'conic-gradient(from 0deg, #ff5252, #ffeb3b, #4caf50, #2196f3, #9c27b0, #ff5252)';
-                    sq.innerHTML = '🌈';
-                }
-                if (fresh) {
-                    sq.classList.add('fresh');
-                    sq.addEventListener('animationend', function onEnd(e) {
-                        if (e.animationName === 'spawn') {
-                            sq.classList.remove('fresh');
-                            sq.removeEventListener('animationend', onEnd);
+            // 垂直掃描
+            for (let c = 0; c < Config.width; c++) {
+                let runStart = 0;
+                for (let r = 1; r <= Config.height; r++) {
+                    const prev = this.board.get(r - 1, c);
+                    const cur = r < Config.height ? this.board.get(r, c) : null;
+                    const same = cur && prev && !prev.empty && !cur.empty && cur.color === prev.color;
+                    if (!same) {
+                        const len = r - runStart;
+                        if (len >= 3 && prev && !prev.empty) {
+                            const cells = [];
+                            for (let k = runStart; k < r; k++) {
+                                cells.push({ r: k, c });
+                                matched.add(Utils.idx(k, c));
+                            }
+                            runs.push({ cells, color: prev.color, dir: 'v' });
                         }
+                        runStart = r;
+                    }
+                }
+            }
+
+            // 從 runs 推導出該生成哪種特殊糖果
+            const specials = this._planSpecials(runs);
+            return { matched, specials };
+        }
+
+        // 根據 runs 決定特殊糖果生成位置/類型
+        // 規則：
+        //  5 連 → cross (彩虹)
+        //  4 連橫 → row (橫向條紋)
+        //  4 連直 → col (直向條紋)
+        //  L/T 形（橫直 run 交集）→ bomb
+        _planSpecials(runs) {
+            const specials = [];
+            const used = new Set(); // 哪些 run 已產出特殊糖果
+
+            // 先找 L/T 形：找兩個 run 共享至少一個格子
+            for (let i = 0; i < runs.length; i++) {
+                if (used.has(i)) continue;
+                for (let j = i + 1; j < runs.length; j++) {
+                    if (used.has(j)) continue;
+                    if (runs[i].dir === runs[j].dir) continue;
+                    if (runs[i].color !== runs[j].color) continue;
+                    const intersection = runs[i].cells.find(a =>
+                        runs[j].cells.some(b => b.r === a.r && b.c === a.c)
+                    );
+                    if (intersection) {
+                        specials.push({
+                            r: intersection.r, c: intersection.c,
+                            type: SPECIAL.BOMB, color: runs[i].color
+                        });
+                        used.add(i); used.add(j);
+                        break;
+                    }
+                }
+            }
+
+            // 剩下的 run 各自處理
+            for (let i = 0; i < runs.length; i++) {
+                if (used.has(i)) continue;
+                const run = runs[i];
+                const len = run.cells.length;
+                const mid = run.cells[Math.floor(len / 2)];
+                if (len >= 5) {
+                    specials.push({ r: mid.r, c: mid.c, type: SPECIAL.CROSS, color: run.color });
+                } else if (len === 4) {
+                    // 直向 run 產生橫條紋（清整列），反之亦然——這比較符合 Bejeweled 慣例
+                    const type = run.dir === 'h' ? SPECIAL.COL : SPECIAL.ROW;
+                    specials.push({ r: mid.r, c: mid.c, type, color: run.color });
+                }
+            }
+            return specials;
+        }
+    }
+
+    // ============================================================
+    // Renderer — 把 board 投影到 DOM
+    // ============================================================
+    class Renderer {
+        constructor(board, gridEl) {
+            this.board = board;
+            this.gridEl = gridEl;
+            this.elements = [];
+            this._buildDOM();
+        }
+        _buildDOM() {
+            this.gridEl.innerHTML = '';
+            const total = Config.width * Config.height;
+            for (let i = 0; i < total; i++) {
+                const el = document.createElement('div');
+                el.className = 'candy';
+                el.dataset.idx = i;
+                this.gridEl.appendChild(el);
+                this.elements.push(el);
+            }
+        }
+        elAt(r, c) { return this.elements[Utils.idx(r, c)]; }
+
+        render({ keepSelected = -1 } = {}) {
+            for (let i = 0; i < this.elements.length; i++) {
+                const cell = this.board.data[i];
+                const el = this.elements[i];
+                el.className = 'candy';
+                el.innerHTML = '';
+                if (cell.empty) {
+                    el.classList.add('empty');
+                    continue;
+                }
+                el.classList.add(cell.color);
+                if (cell.special !== SPECIAL.NONE) {
+                    el.classList.add(cell.special);
+                    if (cell.special === SPECIAL.BOMB) el.innerHTML = '🍬';
+                    else if (cell.special === SPECIAL.CROSS) el.innerHTML = '🌈';
+                }
+                if (cell.fresh) {
+                    el.classList.add('fresh');
+                    cell.fresh = false;
+                }
+                if (i === keepSelected) el.classList.add('selected');
+            }
+        }
+    }
+
+    // ============================================================
+    // Game Controller
+    // ============================================================
+    class Game {
+        constructor() {
+            this.board = new Board();
+            this.matcher = new MatchFinder(this.board);
+            this.gridEl = document.getElementById('grid');
+            this.containerEl = document.getElementById('game-container');
+            this.comboBanner = document.getElementById('comboBanner');
+            this.scoreEl = document.getElementById('score');
+            this.bestEl = document.getElementById('best-score');
+            this.comboEl = document.getElementById('combo');
+
+            this.renderer = new Renderer(this.board, this.gridEl);
+            this.particles = new ParticleEngine(
+                document.getElementById('particles'),
+                this.containerEl
+            );
+
+            this.score = 0;
+            this.combo = 0;
+            this.isProcessing = false;
+            this.selectedIndex = -1;
+
+            this.bestScore = parseInt(localStorage.getItem(Config.bestScoreKey), 10) || 0;
+            this.bestEl.textContent = this.bestScore;
+
+            this.renderer.render();
+            this._bindInputs();
+
+            // 開局如果不小心仍有連線（保險），先消掉
+            this._initialResolve();
+        }
+
+        async _initialResolve() {
+            const { matched } = this.matcher.find();
+            if (matched.size > 0) {
+                this.isProcessing = true;
+                await this._gameLoop();
+            }
+        }
+
+        // ------------------------------------------------------------
+        // Input
+        // ------------------------------------------------------------
+        _bindInputs() {
+            let startX = 0, startY = 0, downIdx = -1;
+
+            this.gridEl.addEventListener('pointerdown', e => {
+                if (this.isProcessing) return;
+                const target = e.target.closest('.candy');
+                if (!target || target.classList.contains('empty')) return;
+                e.preventDefault();
+                startX = e.clientX; startY = e.clientY;
+                downIdx = parseInt(target.dataset.idx, 10);
+            });
+
+            const handleUp = async e => {
+                if (downIdx === -1 || this.isProcessing) { downIdx = -1; return; }
+                const idx = downIdx; downIdx = -1;
+                const [r, c] = Utils.rcOf(idx);
+
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                const isSwipe = Math.abs(dx) > Config.swipeThreshold ||
+                                Math.abs(dy) > Config.swipeThreshold;
+
+                if (isSwipe) {
+                    this._clearSelection();
+                    let r2 = r, c2 = c;
+                    if (Math.abs(dx) > Math.abs(dy)) c2 += dx > 0 ? 1 : -1;
+                    else r2 += dy > 0 ? 1 : -1;
+                    if (Utils.inBounds(r2, c2)) await this._attemptSwap(r, c, r2, c2);
+                    return;
+                }
+
+                // tap
+                if (this.selectedIndex === -1) {
+                    this.selectedIndex = idx;
+                    this.renderer.elements[idx].classList.add('selected');
+                } else if (this.selectedIndex === idx) {
+                    // 點同一格 → 觸發特殊糖果
+                    const cell = this.board.get(r, c);
+                    this._clearSelection();
+                    if (cell && cell.special !== SPECIAL.NONE) {
+                        this.isProcessing = true;
+                        this.combo = 1;
+                        await this._detonateAt(r, c);
+                        await this._dropCandies();
+                        await this._gameLoop();
+                    }
+                } else {
+                    const prev = this.selectedIndex;
+                    const [pr, pc] = Utils.rcOf(prev);
+                    this._clearSelection();
+                    if (Math.abs(pr - r) + Math.abs(pc - c) === 1) {
+                        await this._attemptSwap(pr, pc, r, c);
+                    } else {
+                        // 太遠 → 把當前點當作新選擇
+                        this.selectedIndex = idx;
+                        this.renderer.elements[idx].classList.add('selected');
+                    }
+                }
+            };
+
+            // 用 window 才能抓到拖出 grid 的 pointerup；保留 reference 以便清理
+            window.addEventListener('pointerup', handleUp);
+            window.addEventListener('pointercancel', () => { downIdx = -1; });
+            this._handleUp = handleUp;
+        }
+
+        _clearSelection() {
+            if (this.selectedIndex !== -1) {
+                this.renderer.elements[this.selectedIndex].classList.remove('selected');
+                this.selectedIndex = -1;
+            }
+        }
+
+        // ------------------------------------------------------------
+        // Swap logic
+        // ------------------------------------------------------------
+        async _attemptSwap(r1, c1, r2, c2) {
+            this.isProcessing = true;
+            const s1 = this.board.get(r1, c1);
+            const s2 = this.board.get(r2, c2);
+
+            this.board.swap(r1, c1, r2, c2);
+            this.renderer.render();
+            await Utils.delay(Config.timing.swap);
+
+            // 1) 處理特殊糖果組合
+            if (await this._handleSpecialCombo(r1, c1, r2, c2, s1, s2)) {
+                await this._dropCandies();
+                await this._gameLoop();
+                return;
+            }
+
+            // 2) 沒有特殊組合 → 用普通三連檢測
+            const { matched } = this.matcher.find();
+            if (matched.size > 0) {
+                this.combo = 0;
+                await this._gameLoop();
+            } else {
+                // 還原
+                this.board.swap(r1, c1, r2, c2);
+                this.renderer.render();
+                await Utils.delay(Config.timing.swap);
+                this.isProcessing = false;
+            }
+        }
+
+        // 回傳 true 如果處理了特殊組合
+        async _handleSpecialCombo(r1, c1, r2, c2, s1, s2) {
+            const sp1 = s1.special, sp2 = s2.special;
+            const isCross = s => s === SPECIAL.CROSS;
+            const isBomb = s => s === SPECIAL.BOMB;
+            const isStripe = s => s === SPECIAL.ROW || s === SPECIAL.COL;
+
+            // cross + cross → 全消
+            if (isCross(sp1) && isCross(sp2)) {
+                this.combo = 1;
+                const all = new Set();
+                for (let i = 0; i < this.board.data.length; i++) all.add(i);
+                await this._clearByIndices(all);
+                return true;
+            }
+
+            // cross + 任意 → 把該顏色全部「特殊化」並引爆
+            if (isCross(sp1) || isCross(sp2)) {
+                this.combo = 1;
+                const crossPos = isCross(sp1) ? { r: r1, c: c1 } : { r: r2, c: c2 };
+                const target = isCross(sp1) ? s2 : s1;
+                const targetColor = target.color;
+
+                // cross 自爆
+                this.board.set(crossPos.r, crossPos.c, this.board.makeEmpty());
+                // 同色全標 special（若 target 是 stripe/bomb 就傳染）
+                const indices = new Set();
+                indices.add(Utils.idx(crossPos.r, crossPos.c));
+                for (let i = 0; i < this.board.data.length; i++) {
+                    const cell = this.board.data[i];
+                    if (cell.empty || cell.color !== targetColor) continue;
+                    if (target.special !== SPECIAL.NONE) {
+                        let infect = target.special;
+                        if (infect === SPECIAL.ROW || infect === SPECIAL.COL) {
+                            infect = Math.random() > 0.5 ? SPECIAL.ROW : SPECIAL.COL;
+                        }
+                        cell.special = infect;
+                    }
+                    indices.add(i);
+                }
+                await this._clearByIndices(indices);
+                return true;
+            }
+
+            // bomb + bomb → 5x5 爆破
+            if (isBomb(sp1) && isBomb(sp2)) {
+                this.combo = 1;
+                const indices = new Set();
+                for (let dr = -2; dr <= 2; dr++) {
+                    for (let dc = -2; dc <= 2; dc++) {
+                        if (Utils.inBounds(r2 + dr, c2 + dc)) {
+                            indices.add(Utils.idx(r2 + dr, c2 + dc));
+                        }
+                    }
+                }
+                await this._clearByIndices(indices);
+                return true;
+            }
+
+            // bomb + stripe → 3列+3欄
+            if ((isBomb(sp1) && isStripe(sp2)) || (isStripe(sp1) && isBomb(sp2))) {
+                this.combo = 1;
+                const indices = new Set();
+                for (let i = -1; i <= 1; i++) {
+                    for (let c = 0; c < Config.width; c++) {
+                        if (Utils.inBounds(r2 + i, c)) indices.add(Utils.idx(r2 + i, c));
+                    }
+                    for (let r = 0; r < Config.height; r++) {
+                        if (Utils.inBounds(r, c2 + i)) indices.add(Utils.idx(r, c2 + i));
+                    }
+                }
+                await this._clearByIndices(indices);
+                return true;
+            }
+
+            // stripe + stripe → 整列+整欄
+            if (isStripe(sp1) && isStripe(sp2)) {
+                this.combo = 1;
+                const indices = new Set();
+                for (let c = 0; c < Config.width; c++) indices.add(Utils.idx(r2, c));
+                for (let r = 0; r < Config.height; r++) indices.add(Utils.idx(r, c2));
+                await this._clearByIndices(indices);
+                return true;
+            }
+
+            return false;
+        }
+
+        // tap 同格觸發
+        async _detonateAt(r, c) {
+            await this._clearByIndices(new Set([Utils.idx(r, c)]));
+        }
+
+        // ------------------------------------------------------------
+        // Clear / drop / loop
+        // ------------------------------------------------------------
+        // 將起始 indices 透過 BFS 觸發鏈式特殊效果，最後一次性清掉
+        async _clearByIndices(seeds) {
+            const toProcess = []; // queue of indices
+            const queued = new Set();
+            const finalClear = []; // {r, c, color, special}
+
+            for (const idx of seeds) {
+                if (!queued.has(idx)) { queued.add(idx); toProcess.push(idx); }
+            }
+
+            const enqueue = (r, c) => {
+                if (!Utils.inBounds(r, c)) return;
+                const i = Utils.idx(r, c);
+                if (queued.has(i)) return;
+                const cell = this.board.data[i];
+                if (!cell || cell.empty) return;
+                queued.add(i); toProcess.push(i);
+            };
+
+            const triggers = {
+                [SPECIAL.ROW]: (r) => {
+                    for (let c = 0; c < Config.width; c++) enqueue(r, c);
+                },
+                [SPECIAL.COL]: (_r, c) => {
+                    for (let r = 0; r < Config.height; r++) enqueue(r, c);
+                },
+                [SPECIAL.BOMB]: (r, c) => {
+                    for (let dr = -1; dr <= 1; dr++)
+                        for (let dc = -1; dc <= 1; dc++) enqueue(r + dr, c + dc);
+                },
+                [SPECIAL.CROSS]: () => {
+                    // 鏈式觸發到的 cross：消除一個隨機顏色
+                    const pool = this.board.data.filter(c => !c.empty && c.special !== SPECIAL.CROSS);
+                    if (pool.length === 0) return;
+                    const target = pool[Math.floor(Math.random() * pool.length)].color;
+                    for (let i = 0; i < this.board.data.length; i++) {
+                        if (this.board.data[i].color === target) {
+                            const [r, c] = Utils.rcOf(i);
+                            enqueue(r, c);
+                        }
+                    }
+                }
+            };
+
+            // BFS
+            while (toProcess.length > 0) {
+                const idx = toProcess.shift();
+                const cell = this.board.data[idx];
+                if (!cell || cell.empty) continue;
+                const [r, c] = Utils.rcOf(idx);
+                finalClear.push({ r, c, color: cell.color, special: cell.special });
+
+                if (cell.special !== SPECIAL.NONE && triggers[cell.special]) {
+                    triggers[cell.special](r, c);
+                }
+                // 標記為「即將清除」，避免重複處理
+                cell.empty = true;
+            }
+
+            if (finalClear.length === 0) return;
+
+            // 算分（含 combo）
+            const multiplier = 1 + Math.max(0, this.combo - 1) * Config.scoring.comboBonus;
+            const gained = Math.floor(finalClear.length * Config.scoring.base * multiplier);
+            this.score += gained;
+
+            // 視覺：粒子 + 動畫 + combo banner
+            const conRect = this.containerEl.getBoundingClientRect();
+            for (const t of finalClear) {
+                const el = this.renderer.elAt(t.r, t.c);
+                const rect = el.getBoundingClientRect();
+                this.particles.emit(
+                    rect.left - conRect.left + rect.width / 2,
+                    rect.top - conRect.top + rect.height / 2,
+                    t.color
+                );
+                el.classList.add('clearing');
+            }
+
+            if (finalClear.length > 5 || this.combo > 1) {
+                this.containerEl.classList.add('shake-screen');
+                setTimeout(() => this.containerEl.classList.remove('shake-screen'), 300);
+                if (this.combo > 1) {
+                    this.comboBanner.textContent = `Combo ${this.combo}!`;
+                    this.comboBanner.classList.remove('show');
+                    void this.comboBanner.offsetWidth;
+                    this.comboBanner.classList.add('show');
+                }
+            }
+
+            this._updateHUD();
+            await Utils.delay(Config.timing.clear);
+
+            // 真正寫入空格資料
+            for (const t of finalClear) {
+                this.board.set(t.r, t.c, this.board.makeEmpty());
+            }
+            this.renderer.render();
+        }
+
+        async _dropCandies() {
+            let moved = false;
+            for (let c = 0; c < Config.width; c++) {
+                let writeR = Config.height - 1;
+                for (let readR = Config.height - 1; readR >= 0; readR--) {
+                    const cell = this.board.get(readR, c);
+                    if (!cell.empty) {
+                        if (writeR !== readR) {
+                            this.board.set(writeR, c, { ...cell, fresh: true });
+                            this.board.set(readR, c, this.board.makeEmpty());
+                            moved = true;
+                        }
+                        writeR--;
+                    }
+                }
+                while (writeR >= 0) {
+                    this.board.set(writeR, c, this.board.makeNormal());
+                    writeR--;
+                    moved = true;
+                }
+            }
+            this.renderer.render();
+            if (moved) await Utils.delay(Config.timing.drop);
+        }
+
+        async _gameLoop() {
+            while (true) {
+                const { matched, specials } = this.matcher.find();
+                if (matched.size === 0) break;
+                this.combo++;
+                this.comboEl.textContent = this.combo;
+
+                // 1) 把要清的格子先記下來
+                const indicesToClear = new Set(matched);
+
+                // 2) 預留特殊糖果生成位置：把它從 clear set 中移除，並改寫資料
+                const reservedSpawns = [];
+                for (const sp of specials) {
+                    const idx = Utils.idx(sp.r, sp.c);
+                    if (indicesToClear.has(idx)) {
+                        indicesToClear.delete(idx);
+                        reservedSpawns.push(sp);
+                    }
+                }
+
+                // 3) 觸發 BFS 清除（會擴散到鏈上的特殊糖果）
+                await this._clearByIndices(indicesToClear);
+
+                // 4) 寫入新生成的特殊糖果（spawn point 在前一步留空了）
+                for (const sp of reservedSpawns) {
+                    this.board.set(sp.r, sp.c, {
+                        color: sp.color, special: sp.type, empty: false, fresh: true
                     });
                 }
+                this.renderer.render();
+
+                // 5) 掉落
+                await this._dropCandies();
             }
+            this.combo = 0;
+            this.comboEl.textContent = 0;
+            this.isProcessing = false;
+        }
 
-            function clearCandyBasic(index) {
-                squares[index].dataset.color = '';
-                squares[index].dataset.special = 'none';
-                squares[index].className = 'candy';
-                squares[index].style.background = '';
-                squares[index].innerHTML = '';
+        _updateHUD() {
+            this.scoreEl.textContent = this.score;
+            this.scoreEl.classList.remove('bump');
+            void this.scoreEl.offsetWidth;
+            this.scoreEl.classList.add('bump');
+
+            if (this.score > this.bestScore) {
+                this.bestScore = this.score;
+                this.bestEl.textContent = this.bestScore;
+                try { localStorage.setItem(Config.bestScoreKey, String(this.bestScore)); }
+                catch (_) { /* localStorage 可能被禁用 */ }
             }
+        }
+    }
 
-            function bumpScore() {
-                scoreBoard.classList.remove('bump');
-                void scoreBoard.offsetWidth;
-                scoreBoard.classList.add('bump');
-            }
-
-            function showCombo(count) {
-                if (count < 2) return;
-                comboBanner.textContent = `Combo x${count}!`;
-                comboBanner.classList.remove('show');
-                void comboBanner.offsetWidth;
-                comboBanner.classList.add('show');
-            }
-
-            createBoard();
-
-            let selectedSquare = null;
-            squares.forEach(square => square.addEventListener('click', handleSquareClick));
-
-            function handleSquareClick() {
-                if (!selectedSquare) {
-                    selectedSquare = this;
-                    this.classList.add('selected');
-                } else {
-                    let firstId = parseInt(selectedSquare.id);
-                    let secondId = parseInt(this.id);
-
-                    // ==========================================
-                    // 1. 雙擊特殊炸彈直接引爆邏輯
-                    // ==========================================
-                    if (firstId === secondId) {
-                        let spec = selectedSquare.dataset.special;
-                        if (spec !== 'none') {
-                            // 點擊兩次特殊道具，直接觸發爆炸！
-                            triggerClear(firstId);
-                        }
-                        resetSelection();
-                        return;
-                    }
-
-                    // 檢查合法移動邊界
-                    let validMoves = [firstId - 1, firstId - width, firstId + 1, firstId + width];
-                    if (firstId % width === 0) validMoves = validMoves.filter(m => m !== firstId - 1);
-                    if (firstId % width === width - 1) validMoves = validMoves.filter(m => m !== firstId + 1);
-
-                    if (validMoves.includes(secondId)) {
-                        let color1 = selectedSquare.dataset.color;
-                        let spec1 = selectedSquare.dataset.special;
-                        let color2 = this.dataset.color;
-                        let spec2 = this.dataset.special;
-
-                        let isStriped1 = (spec1 === 'row' || spec1 === 'col');
-                        let isStriped2 = (spec2 === 'row' || spec2 === 'col');
-                        let isBomb1 = (spec1 === 'bomb');
-                        let isBomb2 = (spec2 === 'bomb');
-                        let isColorBomb1 = (spec1 === 'cross');
-                        let isColorBomb2 = (spec2 === 'cross');
-
-                        // ==========================================
-                        // Combo 1: 雙彩虹炸彈 (清除全畫面)
-                        // ==========================================
-                        if (isColorBomb1 && isColorBomb2) {
-                            clearCandyBasic(firstId);
-                            clearCandyBasic(secondId);
-                            for (let i = 0; i < width * width; i++) triggerClear(i);
-                            resetSelection(); return;
-                        }
-
-                        // ==========================================
-                        // Combo 2: 彩虹炸彈 + 特殊/普通糖果 (感染機制)
-                        // ==========================================
-                        if (isColorBomb1 || isColorBomb2) {
-                            let targetColor = isColorBomb1 ? color2 : color1;
-                            let targetSpecial = isColorBomb1 ? spec2 : spec1;
-
-                            clearCandyBasic(firstId);
-                            clearCandyBasic(secondId);
-
-                            // 若目標是特殊糖果，全場同色糖果跟著「升級」
-                            if (targetSpecial !== 'none' && targetSpecial !== 'cross') {
-                                for (let i = 0; i < width * width; i++) {
-                                    if (squares[i].dataset.color === targetColor) {
-                                        let spawn = targetSpecial;
-                                        // 條紋糖果感染時，隨機賦予直向或橫向
-                                        if (targetSpecial === 'row' || targetSpecial === 'col') {
-                                            spawn = Math.random() > 0.5 ? 'row' : 'col';
-                                        }
-                                        setCandy(i, targetColor, spawn);
-                                    }
-                                }
-                            }
-
-                            // 將全場目標顏色的糖果統一引爆！
-                            for (let i = 0; i < width * width; i++) {
-                                if (squares[i].dataset.color === targetColor) triggerClear(i);
-                            }
-                            resetSelection(); return;
-                        }
-
-                        // Combo 3: 雙包裝炸彈 (巨大 5x5 爆破)
-                        if (isBomb1 && isBomb2) {
-                            clearCandyBasic(firstId);
-                            clearCandyBasic(secondId);
-                            let targetR = Math.floor(secondId / width);
-                            let targetC = secondId % width;
-                            for (let r = targetR - 2; r <= targetR + 2; r++) {
-                                for (let c = targetC - 2; c <= targetC + 2; c++) {
-                                    if (r >= 0 && r < width && c >= 0 && c < width) triggerClear(r * width + c);
-                                }
-                            }
-                            resetSelection(); return;
-                        }
-
-                        // Combo 4: 包裝 + 方向 (十字炸 3 排)
-                        if ((isStriped1 && isBomb2) || (isBomb1 && isStriped2)) {
-                            clearCandyBasic(firstId);
-                            clearCandyBasic(secondId);
-                            let targetR = Math.floor(secondId / width);
-                            let targetC = secondId % width;
-                            for (let r = targetR - 1; r <= targetR + 1; r++) {
-                                if (r >= 0 && r < width) {
-                                    for (let c = 0; c < width; c++) triggerClear(r * width + c);
-                                }
-                            }
-                            for (let c = targetC - 1; c <= targetC + 1; c++) {
-                                if (c >= 0 && c < width) {
-                                    for (let r = 0; r < width; r++) triggerClear(r * width + c);
-                                }
-                            }
-                            resetSelection(); return;
-                        }
-
-                        // Combo 5: 雙方向 (十字炸 1 排)
-                        if (isStriped1 && isStriped2) {
-                            clearCandyBasic(firstId);
-                            clearCandyBasic(secondId);
-                            let targetR = Math.floor(secondId / width);
-                            let targetC = secondId % width;
-                            for (let i = 0; i < width; i++) triggerClear(targetR * width + i);
-                            for (let i = 0; i < width; i++) triggerClear(i * width + targetC);
-                            resetSelection(); return;
-                        }
-
-                        // --- 正常交換邏輯 ---
-                        setCandy(firstId, color2, spec2);
-                        setCandy(secondId, color1, spec1);
-                        lastMove = [firstId, secondId];
-
-                        if (!hasAnyMatch()) {
-                            setTimeout(() => {
-                                setCandy(firstId, color1, spec1);
-                                setCandy(secondId, color2, spec2);
-                            }, 300);
-                        }
-                    }
-                    resetSelection();
-                }
-            }
-
-            function resetSelection() {
-                if (selectedSquare) selectedSquare.classList.remove('selected');
-                selectedSquare = null;
-            }
-
-            function hasAnyMatch() {
-                for (let r = 0; r < width; r++) {
-                    for (let c = 0; c < width - 2; c++) {
-                        let i = r * width + c;
-                        let col = squares[i].dataset.color;
-                        if (col && col === squares[i + 1].dataset.color && col === squares[i + 2].dataset.color) return true;
-                    }
-                }
-                for (let c = 0; c < width; c++) {
-                    for (let r = 0; r < width - 2; r++) {
-                        let i = r * width + c;
-                        let col = squares[i].dataset.color;
-                        if (col && col === squares[i + width].dataset.color && col === squares[i + width * 2].dataset.color) return true;
-                    }
-                }
-                return false;
-            }
-
-            // 引爆判定引擎
-            function triggerClear(i) {
-                let color = squares[i].dataset.color;
-                if (!color) return;
-
-                let special = squares[i].dataset.special;
-                clearCandyBasic(i);
-                score += 5;
-                scoreDisplay.innerHTML = score;
-
-                let r = Math.floor(i / width);
-                let c = i % width;
-
-                if (special === 'row') {
-                    for (let col = 0; col < width; col++) triggerClear(r * width + col);
-                } else if (special === 'col') {
-                    for (let row = 0; row < width; row++) triggerClear(row * width + c);
-                } else if (special === 'bomb') {
-                    for (let dr = -1; dr <= 1; dr++) {
-                        for (let dc = -1; dc <= 1; dc++) {
-                            let nr = r + dr;
-                            let nc = c + dc;
-                            if (nr >= 0 && nr < width && nc >= 0 && nc < width) {
-                                triggerClear(nr * width + nc);
-                            }
-                        }
-                    }
-                } else if (special === 'cross') {
-                    let available = [];
-                    for (let idx = 0; idx < width * width; idx++) {
-                        let col = squares[idx].dataset.color;
-                        if (col && !available.includes(col)) available.push(col);
-                    }
-                    if (available.length > 0) {
-                        let randColor = available[Math.floor(Math.random() * available.length)];
-                        for (let idx = 0; idx < width * width; idx++) {
-                            if (squares[idx].dataset.color === randColor) triggerClear(idx);
-                        }
-                    }
-                }
-            }
-
-            function checkMatches() {
-                let matches = new Set();
-                let specialsToCreate = [];
-                let hLines = [];
-                let vLines = [];
-
-                for (let r = 0; r < width; r++) {
-                    let matchLength = 1;
-                    for (let c = 0; c < width; c++) {
-                        let i = r * width + c;
-                        let color = squares[i].dataset.color;
-                        let nextColor = (c < width - 1) ? squares[i + 1].dataset.color : null;
-
-                        if (color && color === nextColor) {
-                            matchLength++;
-                        } else {
-                            if (matchLength >= 3) {
-                                let line = [];
-                                for (let k = 0; k < matchLength; k++) line.push(i - k);
-                                hLines.push({ color: color, indices: line, handled: false });
-                            }
-                            matchLength = 1;
-                        }
-                    }
-                }
-
-                for (let c = 0; c < width; c++) {
-                    let matchLength = 1;
-                    for (let r = 0; r < width; r++) {
-                        let i = r * width + c;
-                        let color = squares[i].dataset.color;
-                        let nextColor = (r < width - 1) ? squares[i + width].dataset.color : null;
-
-                        if (color && color === nextColor) {
-                            matchLength++;
-                        } else {
-                            if (matchLength >= 3) {
-                                let line = [];
-                                for (let k = 0; k < matchLength; k++) line.push(i - k * width);
-                                vLines.push({ color: color, indices: line, handled: false });
-                            }
-                            matchLength = 1;
-                        }
-                    }
-                }
-
-                for (let h of hLines) {
-                    for (let v of vLines) {
-                        if (h.color === v.color && !h.handled && !v.handled) {
-                            let intersect = h.indices.find(idx => v.indices.includes(idx));
-                            if (intersect !== undefined) {
-                                h.handled = true;
-                                v.handled = true;
-                                specialsToCreate.push({ index: intersect, color: h.color, type: 'bomb' });
-                                h.indices.forEach(idx => matches.add(idx));
-                                v.indices.forEach(idx => matches.add(idx));
-                            }
-                        }
-                    }
-                }
-
-                let processLine = (lineObj, type4) => {
-                    if (lineObj.handled) return;
-                    let len = lineObj.indices.length;
-
-                    let targetIdx = lineObj.indices[Math.floor(len / 2)];
-                    for (let idx of lineObj.indices) {
-                        if (lastMove.includes(idx)) targetIdx = idx;
-                    }
-
-                    if (len >= 5) specialsToCreate.push({ index: targetIdx, color: lineObj.color, type: 'cross' });
-                    else if (len === 4) specialsToCreate.push({ index: targetIdx, color: lineObj.color, type: type4 });
-
-                    lineObj.indices.forEach(idx => matches.add(idx));
-                };
-
-                for (let h of hLines) processLine(h, 'col');
-                for (let v of vLines) processLine(v, 'row');
-
-                if (matches.size > 0) {
-                    matches.forEach(idx => triggerClear(idx));
-                    specialsToCreate.forEach(s => setCandy(s.index, s.color, s.type, true));
-                    lastMove = [];
-                    return true;
-                }
-                return false;
-            }
-
-            function moveDown() {
-                for (let c = 0; c < width; c++) {
-                    for (let r = width - 1; r >= 0; r--) {
-                        let i = r * width + c;
-                        if (!squares[i].dataset.color) {
-                            for (let k = r - 1; k >= 0; k--) {
-                                let aboveIdx = k * width + c;
-                                if (squares[aboveIdx].dataset.color) {
-                                    setCandy(i, squares[aboveIdx].dataset.color, squares[aboveIdx].dataset.special, true);
-                                    clearCandyBasic(aboveIdx);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                for (let c = 0; c < width; c++) {
-                    for (let r = 0; r < width; r++) {
-                        let i = r * width + c;
-                        if (!squares[i].dataset.color) {
-                            let randomColor = colorKeys[Math.floor(Math.random() * colorKeys.length)];
-                            setCandy(i, randomColor, 'none', true);
-                        }
-                    }
-                }
-            }
-
-            window.setInterval(function() {
-                if (checkMatches()) {
-                    comboCount++;
-                    bumpScore();
-                    stableTicks = 0;
-                } else {
-                    moveDown();
-                    stableTicks++;
-                    if (stableTicks >= 2) {
-                        if (comboCount >= 2) showCombo(comboCount);
-                        comboCount = 0;
-                    }
-                }
-            }, 200);
-        });
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', () => {
+        window.game = new Game();
+    });
     </script>
 </body>
 </html>
