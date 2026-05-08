@@ -207,18 +207,21 @@
 </head>
 <body>
 
+    <!-- HUD -->
     <div class="hud">
         <div class="hud-box"><label id="score-label">SCORE</label><span id="score">0</span></div>
         <div class="hud-box" id="hud-center"><label id="center-label">BEST</label><span id="center-val">0</span></div>
         <div class="hud-box"><label id="limit-label">MOVES</label><span id="limit-val">∞</span></div>
     </div>
 
+    <!-- Game Area -->
     <div class="game-container" id="game-container">
         <div class="grid" id="grid"></div>
         <canvas id="particles"></canvas>
     </div>
     <div class="combo-banner" id="comboBanner"></div>
 
+    <!-- Main Menu Overlay -->
     <div id="menu-overlay" class="overlay active">
         <div class="modal">
             <h2>Sweet Candy 🍭</h2>
@@ -229,6 +232,7 @@
         </div>
     </div>
 
+    <!-- Game Over / Result Overlay -->
     <div id="result-overlay" class="overlay">
         <div class="modal">
             <h2 id="result-title">Game Over</h2>
@@ -259,14 +263,16 @@
     const SPECIAL = Object.freeze({ NONE: 'none', ROW: 'row', COL: 'col', BOMB: 'bomb', CROSS: 'cross' });
     const GAME_STATE = Object.freeze({ MENU: 'MENU', PLAYING: 'PLAYING', GAME_OVER: 'GAME_OVER' });
 
-    // 關卡設定 (闖關模式)
-    const STAGE_CONFIGS = [
-        { level: 1, targetScore: 1000, moves: 15 },
-        { level: 2, targetScore: 2500, moves: 20 },
-        { level: 3, targetScore: 5000, moves: 25 },
-        { level: 4, targetScore: 8000, moves: 25 },
-        { level: 5, targetScore: 12000, moves: 30 }
-    ];
+    // ============================================================
+    // 關卡設定 (闖關模式) - 難度調低，動態生成 50 關
+    // 第一關 500 分，後續每關增加 250 分
+    // 開局給 20 步，每 3 關增加 2 步，確保難度平滑且不會卡關
+    // ============================================================
+    const STAGE_CONFIGS = Array.from({ length: 50 }, (_, i) => ({
+        level: i + 1,
+        targetScore: 500 + (i * 250),
+        moves: 20 + Math.floor(i / 3) * 2 
+    }));
 
     // ============================================================
     // Utils / ParticleEngine / Board / MatchFinder / Renderer
@@ -488,7 +494,7 @@
             const { matched } = this.matcher.find();
             if (matched.size > 0) {
                 this.isProcessing = true;
-                await this._gameLoop(true); // 初始化，不計分、不扣步數
+                await this._gameLoop(true);
             }
         }
 
@@ -718,7 +724,7 @@
             }
         }
 
-        // ======================= 特殊糖果邏輯 (已包含彩虹炸彈座標修復) =======================
+        // ======================= 特殊糖果邏輯 =======================
         async _handleSpecialCombo(r1, c1, r2, c2, s1, s2) {
             const sp1 = s1.special, sp2 = s2.special;
             const isCross = s => s === SPECIAL.CROSS;
@@ -737,8 +743,6 @@
             if (isCross(sp1) || isCross(sp2)) {
                 this.combo = 1;
                 
-                // 【修正】因為前面已經執行過 board.swap() 了！
-                // 如果 s1 (原本在 r1,c1) 是彩虹炸彈，它現在的實際位置其實是在 r2,c2。
                 const crossPos = isCross(sp1) ? { r: r2, c: c2 } : { r: r1, c: c1 };
                 const target = isCross(sp1) ? s2 : s1;
                 const targetColor = target.color;
@@ -746,13 +750,9 @@
                 const indices = new Set();
                 const crossIdx = Utils.idx(crossPos.r, crossPos.c);
                 
-                // 1. 將彩虹炸彈「正確的位置」加入消除名單
                 indices.add(crossIdx);
-                
-                // 2. 將彩虹炸彈的狀態暫時還原，避免 _clearByIndices 處理時又觸發一次隨機消除
                 this.board.data[crossIdx].special = SPECIAL.NONE;
 
-                // 3. 找出所有同色球並加入消除名單
                 for (let i = 0; i < this.board.data.length; i++) {
                     const cell = this.board.data[i];
                     if (cell.empty || cell.color !== targetColor) continue;
