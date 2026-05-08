@@ -713,20 +713,23 @@
                 return true;
             }
 
-            // cross + 任意 → 把該顏色全部「特殊化」並引爆，彩虹炸彈本身也正常參與消除動畫
+            // cross + 任意 → 修復：座標對調問題
             if (isCross(sp1) || isCross(sp2)) {
                 this.combo = 1;
-                const crossPos = isCross(sp1) ? { r: r1, c: c1 } : { r: r2, c: c2 };
+                
+                // 【修正核心】因為前面已經執行過 board.swap() 了！
+                // 所以如果 s1 (原本在 r1,c1) 是彩虹炸彈，它現在的實際位置其實是在 r2,c2。
+                const crossPos = isCross(sp1) ? { r: r2, c: c2 } : { r: r1, c: c1 };
                 const target = isCross(sp1) ? s2 : s1;
                 const targetColor = target.color;
 
                 const indices = new Set();
                 const crossIdx = Utils.idx(crossPos.r, crossPos.c);
                 
-                // 1. 將彩虹炸彈直接加入消除名單 (不要提早設為 empty)
+                // 1. 將彩虹炸彈「正確的位置」加入消除名單
                 indices.add(crossIdx);
                 
-                // 2. 將彩虹炸彈的狀態暫時還原，避免 _clearByIndices 處理時又觸發一次「隨機消除一色」
+                // 2. 將彩虹炸彈的狀態暫時還原，避免 _clearByIndices 處理時又觸發一次隨機消除
                 this.board.data[crossIdx].special = SPECIAL.NONE;
 
                 // 3. 找出所有同色球並加入消除名單
@@ -734,7 +737,6 @@
                     const cell = this.board.data[i];
                     if (cell.empty || cell.color !== targetColor) continue;
                     
-                    // 保留原本的傳染機制：如果交換的是特殊糖果，同色球就全部變成該特殊糖果
                     if (target.special !== SPECIAL.NONE) {
                         let infect = target.special;
                         if (infect === SPECIAL.ROW || infect === SPECIAL.COL) {
