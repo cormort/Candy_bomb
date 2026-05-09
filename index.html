@@ -15,6 +15,9 @@
             --anim-fast: 120ms;
             --anim-mid: 180ms;
             --anim-slow: 280ms;
+            --bg-grad: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 45%, #c8a2c8 100%);
+            --blob1: rgba(255, 138, 128, 0.65);
+            --blob2: rgba(170, 0, 255, 0.45);
         }
 
         @media (max-width: 420px) {
@@ -28,20 +31,22 @@
 
         body {
             display: flex; flex-direction: column; align-items: center;
-            background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 45%, #c8a2c8 100%);
+            background: var(--bg-grad);
             background-attachment: fixed; font-family: system-ui, -apple-system, sans-serif;
             margin: 0; padding: 20px 10px; min-height: 100vh;
             touch-action: none; user-select: none; -webkit-tap-highlight-color: transparent;
             overflow-x: hidden; position: relative;
+            transition: background 0.8s ease;
         }
 
         /* 漂浮背景特效 */
         body::before, body::after {
             content: ''; position: fixed; border-radius: 50%; filter: blur(var(--bg-blur));
             z-index: 0; pointer-events: none; animation: float 9s ease-in-out infinite;
+            transition: background 0.8s ease;
         }
-        body::before { width: 360px; height: 360px; background: radial-gradient(circle, rgba(255, 138, 128, 0.65), transparent 70%); top: -100px; left: -100px; }
-        body::after { width: 320px; height: 320px; background: radial-gradient(circle, rgba(170, 0, 255, 0.45), transparent 70%); bottom: -100px; right: -100px; animation-delay: -2s; }
+        body::before { width: 360px; height: 360px; background: radial-gradient(circle, var(--blob1), transparent 70%); top: -100px; left: -100px; }
+        body::after { width: 320px; height: 320px; background: radial-gradient(circle, var(--blob2), transparent 70%); bottom: -100px; right: -100px; animation-delay: -2s; }
         @keyframes float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30px, -20px); } }
 
         /* 頂部工具列 */
@@ -161,11 +166,17 @@
         .btn { background: linear-gradient(135deg, #ff6491, #d81b60); color: white; border: none; padding: 12px 20px; margin: 8px 0; width: 100%; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.1s; }
         .btn:active { transform: scale(0.97); }
         .btn.resume-btn { background: linear-gradient(135deg, #66bb6a, #2e7d32); }
-        .reward-card { background: #fff0f5; border: 2px solid #ffb6c1; padding: 12px; border-radius: 15px; margin-bottom: 10px; cursor: pointer; text-align: left; display: flex; flex-direction: column; transition: 0.2s; }
-        .reward-card:hover { border-color: #d81b60; transform: translateY(-2px); }
-        .reward-card:active { transform: scale(0.97); border-color: #d81b60; background: #ffe4ec; }
+        .reward-card { background: #fff0f5; border: 2px solid #ffb6c1; padding: 12px; border-radius: 15px; margin-bottom: 10px; text-align: left; display: flex; flex-direction: column; transition: 0.2s; }
         .reward-card b { font-size: 16px; color: #d81b60; }
         .reward-card small { font-size: 12px; color: #555; margin-top: 4px; }
+
+        /* 5 關獎勵展示 */
+        .reward-bonus { background: linear-gradient(135deg, #fff8e1, #ffe082); border: 2px solid #ffb300; padding: 14px; border-radius: 16px; margin: 0 0 14px 0; box-shadow: 0 6px 18px rgba(255, 145, 0, 0.3); animation: bonusReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .reward-bonus .bonus-label { display: block; font-size: 12px; color: #c77700; margin-bottom: 6px; font-weight: bold; letter-spacing: 1.5px; text-align: center; }
+        .reward-bonus b { font-size: 18px; color: #d81b60; display: block; }
+        .reward-bonus small { font-size: 12px; color: #555; display: block; margin-top: 4px; }
+        @keyframes bonusReveal { 0% { transform: scale(0.5) rotate(-6deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+        .reward-next-hint { color: #888; font-size: 13px; margin: 8px 0 4px 0; }
 
         /* 破紀錄徽章 */
         .new-best-badge {
@@ -253,15 +264,15 @@
 
     <div id="reward-overlay" class="overlay">
         <div class="modal">
-            <h2>Level Clear! 🎉</h2>
+            <h2 id="reward-title">Level Clear! 🎉</h2>
             <p style="color:#d81b60; font-weight:bold;">剩餘步數已轉入交易所餘額！</p>
-            <p>請挑選一個獎勵存入背包：</p>
-            <div id="reward-list">
-                <div class="reward-card" onclick="window.game.claimReward('DETONATE')"><b>🧨 炸彈遙控器</b><small>引爆畫面所有特殊糖果</small></div>
-                <div class="reward-card" onclick="window.game.claimReward('EXTRA_MOVES')"><b>🎁 幸運步數錦囊</b><small>隨機恢復 1~5 步</small></div>
-                <div class="reward-card" onclick="window.game.claimReward('CLEAR')"><b>✨ 精準消除魔杖</b><small>隨機清空盤面 5 個位置</small></div>
-                <div class="reward-card" onclick="window.game.claimReward('SHUFFLE')"><b>🔀 乾坤大挪移</b><small>保留特殊糖果，其餘全盤洗牌</small></div>
+            <div id="reward-bonus" class="reward-bonus" style="display: none;">
+                <span class="bonus-label">🎁 隨機獎勵入手</span>
+                <b id="reward-bonus-name"></b>
+                <small id="reward-bonus-desc"></small>
             </div>
+            <p id="reward-next-hint" class="reward-next-hint"></p>
+            <button class="btn" onclick="window.game.claimReward()">下一關 ▶</button>
         </div>
     </div>
 
@@ -290,8 +301,28 @@
         soundMutedKey: 'sweetCandy_soundMuted_v1'
     });
 
+    // 關卡背景配色表 (闖關模式每升一級切換,其餘模式固定第 0 組)
+    const Themes = Object.freeze([
+        { bg: 'linear-gradient(135deg, #ff9a9e 0%, #fad0c4 45%, #c8a2c8 100%)', blob1: 'rgba(255, 138, 128, 0.65)', blob2: 'rgba(170, 0, 255, 0.45)' }, // 草莓粉
+        { bg: 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 50%, #d4fc79 100%)', blob1: 'rgba(66, 165, 245, 0.6)',  blob2: 'rgba(0, 188, 212, 0.45)' },  // 海洋藍
+        { bg: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 50%, #a1c4fd 100%)', blob1: 'rgba(102, 187, 106, 0.6)', blob2: 'rgba(66, 165, 245, 0.45)' }, // 薄荷綠
+        { bg: 'linear-gradient(135deg, #fab1a0 0%, #ffeaa7 50%, #fdcb6e 100%)', blob1: 'rgba(255, 112, 67, 0.6)',  blob2: 'rgba(255, 167, 38, 0.45)' }, // 日落橙
+        { bg: 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 50%, #ffecd2 100%)', blob1: 'rgba(126, 87, 194, 0.6)',  blob2: 'rgba(236, 64, 122, 0.45)' }, // 葡萄紫
+        { bg: 'linear-gradient(135deg, #fceabb 0%, #ace0f9 50%, #f6d365 100%)', blob1: 'rgba(255, 238, 88, 0.55)', blob2: 'rgba(38, 198, 218, 0.45)' }  // 檸檬黃
+    ]);
+
     const SPECIAL = Object.freeze({ NONE: 'none', ROW: 'row', COL: 'col', BOMB: 'bomb', CROSS: 'cross' });
     const GAME_STATE = Object.freeze({ MENU: 'MENU', PLAYING: 'PLAYING', PAUSED: 'PAUSED', REWARD: 'REWARD', GAME_OVER: 'GAME_OVER' });
+
+    // 道具顯示資訊 (5 關獎勵抽取池)
+    const ItemInfo = Object.freeze({
+        DETONATE:    { name: '🧨 炸彈遙控器',   desc: '引爆畫面所有特殊糖果' },
+        EXTRA_MOVES: { name: '🎁 幸運步數錦囊', desc: '隨機恢復 1~5 步' },
+        CLEAR:       { name: '✨ 精準消除魔杖', desc: '隨機清空盤面 5 個位置' },
+        SHUFFLE:     { name: '🔀 乾坤大挪移',   desc: '保留特殊糖果,其餘全盤洗牌' }
+    });
+    const ItemKeys = Object.freeze(Object.keys(ItemInfo));
+    const REWARD_EVERY = 5;
 
     const Utils = {
         delay: ms => new Promise(r => setTimeout(r, ms)),
@@ -600,6 +631,14 @@
             if (!muted && this.state === GAME_STATE.PLAYING) this.audio.startBGM();
         }
 
+        _applyTheme(level) {
+            const t = Themes[((level - 1) % Themes.length + Themes.length) % Themes.length];
+            const root = document.documentElement;
+            root.style.setProperty('--bg-grad', t.bg);
+            root.style.setProperty('--blob1', t.blob1);
+            root.style.setProperty('--blob2', t.blob2);
+        }
+
         _syncSoundButton() {
             const btn = document.getElementById('btn-sound-toggle');
             if (this.audio.muted) { btn.textContent = '🔇 聲音'; btn.classList.add('off'); }
@@ -638,6 +677,7 @@
             this.resultBestBadge.classList.remove('show');
             if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
             this.audio.stopBGM();
+            this._applyTheme(1);
         }
 
         openPauseMenu() {
@@ -685,6 +725,7 @@
                 this._initLevel(true);
             }
             this.bestScoreAtStart = this.bestScore;
+            this._applyTheme(mode === 'STAGE' ? this.currentStageLevel : 1);
             if (!this.audio.muted) this.audio.startBGM();
         }
 
@@ -789,30 +830,55 @@
                 if (this.score >= this.targetScore) {
                     this.state = GAME_STATE.REWARD; this.isProcessing = true;
                     this.audio.levelClear();
+                    this._prepareRewardModal();
                     setTimeout(() => { this.rewardOverlay.classList.add('active'); }, 500);
                 } else if (this.movesLeft <= 0) { this._endGame(false); }
             }
         }
 
-        claimReward(type) {
+        _prepareRewardModal() {
+            const cleared = this.currentStageLevel;
+            const isBonus = cleared % REWARD_EVERY === 0;
+            const bonusEl = document.getElementById('reward-bonus');
+            const hintEl = document.getElementById('reward-next-hint');
+            const titleEl = document.getElementById('reward-title');
+
+            titleEl.textContent = `LV ${cleared} Clear! 🎉`;
+
+            if (isBonus) {
+                const type = ItemKeys[Math.floor(Math.random() * ItemKeys.length)];
+                this.inventory[type]++; this._updateInventoryUI();
+                document.getElementById('reward-bonus-name').textContent = ItemInfo[type].name;
+                document.getElementById('reward-bonus-desc').textContent = ItemInfo[type].desc;
+                bonusEl.style.display = 'block';
+                bonusEl.style.animation = 'none'; void bonusEl.offsetWidth; bonusEl.style.animation = '';
+                setTimeout(() => this.audio.special(), 350);
+            } else {
+                bonusEl.style.display = 'none';
+            }
+
+            const nextBonusLevel = Math.ceil((cleared + 1) / REWARD_EVERY) * REWARD_EVERY;
+            const gap = nextBonusLevel - cleared;
+            hintEl.textContent = `下次獎勵：第 ${nextBonusLevel} 關 (再 ${gap} 關)`;
+        }
+
+        claimReward() {
             this.rewardOverlay.classList.remove('active');
-            
-            // 將過關獎勵存入背包
-            this.inventory[type]++; this._updateInventoryUI();
-            
+
             // 核心：剩餘步數存入交易所餘額
             this.tradeMovesPool += this.movesLeft;
 
             // 準備下一關
-            this.currentStageLevel++; 
+            this.currentStageLevel++;
             this.targetScore = 500 + (this.currentStageLevel - 1) * 100;
-            this.score = 0; 
+            this.score = 0;
             this.movesLeft = 20 + 1; // 給予新關卡 20步 + 1步過關獎勵
-            
+
             this.state = GAME_STATE.PLAYING; this.isProcessing = false;
             this._updateHUD();
             this.centerLabel.textContent = `LV ${this.currentStageLevel} GOAL`;
             this.centerVal.textContent = this.targetScore;
+            this._applyTheme(this.currentStageLevel);
         }
 
         _endGame(isWin) {
