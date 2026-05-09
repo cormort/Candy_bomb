@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🍬 Sweet Candy Match: Ultimate FX 🍭</title>
     <style>
         /* === 核心變數 === */
@@ -44,31 +44,37 @@
         body::after { width: 320px; height: 320px; background: radial-gradient(circle, rgba(170, 0, 255, 0.45), transparent 70%); bottom: -100px; right: -100px; animation-delay: -2s; }
         @keyframes float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30px, -20px); } }
 
-        /* 特效開關 */
-        .fx-toggle-wrapper { position: absolute; top: 15px; right: 15px; z-index: 100; }
-        .fx-toggle-btn {
+        /* 頂部工具列 */
+        .top-bar { display: flex; gap: 8px; justify-content: flex-end; align-items: center; width: 100%; max-width: 400px; margin-bottom: 8px; z-index: 10; position: relative; }
+        .toggle-btn {
             background: rgba(255, 255, 255, 0.4); border: 2px solid white; border-radius: 20px;
             padding: 6px 12px; font-size: 13px; font-weight: bold; color: #d81b60; cursor: pointer;
             box-shadow: 0 4px 10px rgba(0,0,0,0.15); backdrop-filter: blur(5px); transition: 0.2s;
+            white-space: nowrap;
         }
-        .fx-toggle-btn:active { transform: scale(0.9); }
+        .toggle-btn:active { transform: scale(0.9); }
+        .toggle-btn.off { background: rgba(0, 0, 0, 0.4); color: #fff; border-color: rgba(255,255,255,0.5); }
+        .toggle-btn.pause-btn { margin-right: auto; background: linear-gradient(135deg, #ff6491, #d81b60); color: white; border-color: white; }
 
         /* HUD */
-        .hud { display: flex; justify-content: space-between; gap: 8px; width: 100%; max-width: 400px; margin-bottom: 15px; margin-top: 35px; color: white; z-index: 10; }
+        .hud { display: flex; justify-content: space-between; gap: 8px; width: 100%; max-width: 400px; margin-bottom: 15px; color: white; z-index: 10; }
         .hud-box {
             flex: 1; background: linear-gradient(135deg, #ff6491, #d81b60); padding: 8px 12px; border-radius: 20px; text-align: center;
-            border: 2px solid rgba(255, 255, 255, 0.7); box-shadow: 0 8px 20px rgba(216, 27, 96, 0.3); display: flex; flex-direction: column; justify-content: center;
+            border: 2px solid rgba(255, 255, 255, 0.7); box-shadow: 0 8px 20px rgba(216, 27, 96, 0.3); display: flex; flex-direction: column; justify-content: center; min-width: 0;
         }
-        .hud-box label { font-size: 11px; opacity: 0.9; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+        .hud-box label { font-size: clamp(9px, 2.6vw, 11px); opacity: 0.9; display: block; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .hud-box span { font-size: 20px; font-weight: bold; transition: transform var(--anim-fast); display: inline-block; }
         .hud-box span.bump { transform: scale(1.3); }
 
         /* 遊戲盤面 */
         .game-container { position: relative; z-index: 5; margin-bottom: 15px; }
+        .game-container.processing { cursor: wait; }
+        .game-container.processing .grid { filter: brightness(0.95) saturate(0.92); }
         .grid {
             display: grid; grid-template-columns: repeat(var(--board-size), var(--cell-size)); grid-template-rows: repeat(var(--board-size), var(--cell-size));
             gap: var(--gap); background: rgba(255, 255, 255, 0.22); padding: var(--board-padding); border-radius: 24px;
             border: 2px solid rgba(255, 255, 255, 0.55); box-shadow: 0 24px 60px rgba(216, 27, 96, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.6); backdrop-filter: blur(var(--bg-blur));
+            transition: filter 0.18s ease;
         }
 
         .candy {
@@ -138,11 +144,13 @@
         .panel-title { font-size: 13px; font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
         .item-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
         
-        .action-btn { background: white; border: 1px solid #ccc; border-radius: 12px; padding: 8px 2px; font-size: 11px; cursor: pointer; text-align: center; display: flex; flex-direction: column; align-items: center; transition: 0.1s; position: relative; }
+        .action-btn { background: white; border: 1px solid #ccc; border-radius: 12px; padding: 8px 2px; font-size: 11px; cursor: pointer; text-align: center; display: flex; flex-direction: column; align-items: center; transition: opacity 0.15s, filter 0.15s, transform 0.1s; position: relative; }
         .action-btn:active:not(:disabled) { transform: scale(0.9); }
-        .action-btn:disabled { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
+        .action-btn:disabled { opacity: 0.55; filter: grayscale(0.55); cursor: not-allowed; }
         .action-btn span.name { color: #333; font-weight: bold; margin-bottom: 3px; }
         .action-btn span.badge { position: absolute; top: -6px; right: -6px; background: #aa00ff; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .action-btn span.cost { color: #d81b60; font-weight: bold; font-size: 10px; }
+        .action-btn.trade-btn:disabled span.cost { color: #999; }
 
         /* Overlays */
         .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
@@ -150,17 +158,32 @@
         .modal { background: white; padding: 25px; border-radius: 24px; text-align: center; max-width: 90%; width: 320px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); transform: translateY(20px); transition: transform 0.3s; max-height: 90vh; overflow-y: auto; }
         .overlay.active .modal { transform: translateY(0); }
         .modal h2 { margin: 0 0 15px 0; color: #d81b60; font-size: 26px; }
-        .btn { background: linear-gradient(135deg, #ff6491, #d81b60); color: white; border: none; padding: 12px 20px; margin: 8px 0; width: 100%; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn { background: linear-gradient(135deg, #ff6491, #d81b60); color: white; border: none; padding: 12px 20px; margin: 8px 0; width: 100%; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.1s; }
+        .btn:active { transform: scale(0.97); }
+        .btn.resume-btn { background: linear-gradient(135deg, #66bb6a, #2e7d32); }
         .reward-card { background: #fff0f5; border: 2px solid #ffb6c1; padding: 12px; border-radius: 15px; margin-bottom: 10px; cursor: pointer; text-align: left; display: flex; flex-direction: column; transition: 0.2s; }
         .reward-card:hover { border-color: #d81b60; transform: translateY(-2px); }
+        .reward-card:active { transform: scale(0.97); border-color: #d81b60; background: #ffe4ec; }
         .reward-card b { font-size: 16px; color: #d81b60; }
         .reward-card small { font-size: 12px; color: #555; margin-top: 4px; }
+
+        /* 破紀錄徽章 */
+        .new-best-badge {
+            display: none; background: linear-gradient(135deg, #ffd54f, #ff9100);
+            color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold;
+            margin: 0 0 12px 0; box-shadow: 0 4px 12px rgba(255, 145, 0, 0.45);
+            letter-spacing: 1px; font-size: 14px;
+        }
+        .new-best-badge.show { display: inline-block; animation: badgeBump 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes badgeBump { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
 
-    <div class="fx-toggle-wrapper">
-        <button id="btn-fx-toggle" class="fx-toggle-btn" onclick="window.game.toggleFX()">✨ 特效: ON</button>
+    <div class="top-bar">
+        <button id="btn-pause" class="toggle-btn pause-btn" style="display: none;" onclick="window.game.openPauseMenu()">⏸ 選單</button>
+        <button id="btn-sound-toggle" class="toggle-btn" onclick="window.game.toggleSound()">🔊 聲音</button>
+        <button id="btn-fx-toggle" class="toggle-btn" onclick="window.game.toggleFX()">✨ 特效</button>
     </div>
 
     <div class="hud">
@@ -202,17 +225,17 @@
             <span>可用餘額: <b id="trade-moves-pool" style="font-size:16px;">0</b> 步</span>
         </div>
         <div class="item-grid">
-            <button class="action-btn" style="border-color: #ff9a9e;" onclick="window.game.tradeItem('SPAWN_BOMB', 5)">
-                <span class="name">💣 隨機炸</span><small style="color: #d81b60; font-weight: bold;">5 步</small>
+            <button class="action-btn trade-btn" data-cost="5" style="border-color: #ff9a9e;" onclick="window.game.tradeItem('SPAWN_BOMB', 5)">
+                <span class="name">💣 隨機炸</span><span class="cost">5 步</span>
             </button>
-            <button class="action-btn" style="border-color: #ff9a9e;" onclick="window.game.tradeItem('SHUFFLE', 8)">
-                <span class="name">🔀 重洗牌</span><small style="color: #d81b60; font-weight: bold;">8 步</small>
+            <button class="action-btn trade-btn" data-cost="8" style="border-color: #ff9a9e;" onclick="window.game.tradeItem('SHUFFLE', 8)">
+                <span class="name">🔀 重洗牌</span><span class="cost">8 步</span>
             </button>
-            <button class="action-btn" style="border-color: #ff9a9e;" onclick="window.game.tradeItem('RANDOM_CLEAR', 10)">
-                <span class="name">✨ 隨機消</span><small style="color: #d81b60; font-weight: bold;">10 步</small>
+            <button class="action-btn trade-btn" data-cost="10" style="border-color: #ff9a9e;" onclick="window.game.tradeItem('RANDOM_CLEAR', 10)">
+                <span class="name">✨ 隨機消</span><span class="cost">10 步</span>
             </button>
-            <button class="action-btn" style="border-color: #ff9a9e;" onclick="window.game.tradeItem('SPAWN_CROSS', 15)">
-                <span class="name">🌈 產彩虹</span><small style="color: #d81b60; font-weight: bold;">15 步</small>
+            <button class="action-btn trade-btn" data-cost="15" style="border-color: #ff9a9e;" onclick="window.game.tradeItem('SPAWN_CROSS', 15)">
+                <span class="name">🌈 產彩虹</span><span class="cost">15 步</span>
             </button>
         </div>
     </div>
@@ -221,6 +244,7 @@
     <div id="menu-overlay" class="overlay active">
         <div class="modal">
             <h2>Sweet Candy 🍭</h2>
+            <button class="btn resume-btn" id="btn-resume" style="display: none;" onclick="window.game.resumeGame()">▶️ 繼續遊戲</button>
             <button class="btn" onclick="window.game.startMode('ENDLESS')">♾️ 無盡模式</button>
             <button class="btn" onclick="window.game.startMode('TIME')">⏱️ 計時模式 (60秒)</button>
             <button class="btn" onclick="window.game.startMode('STAGE')">🏆 闖關模式</button>
@@ -243,6 +267,7 @@
 
     <div id="result-overlay" class="overlay">
         <div class="modal">
+            <span id="result-best-badge" class="new-best-badge">🏆 NEW BEST!</span>
             <h2 id="result-title">Game Over</h2>
             <p id="result-desc">Your score: 0</p>
             <button class="btn" onclick="window.game.restartCurrentMode()">再玩一次</button>
@@ -261,11 +286,12 @@
         scoring: { base: 10, comboBonus: 0.25 },
         particles: { count: 14, spread: 11, gravity: 0.4, decay: 0.04 },
         swipeThreshold: 20,
-        bestScoreKey: 'sweetCandy_bestScore_v10'
+        bestScoreKey: 'sweetCandy_bestScore_v10',
+        soundMutedKey: 'sweetCandy_soundMuted_v1'
     });
 
     const SPECIAL = Object.freeze({ NONE: 'none', ROW: 'row', COL: 'col', BOMB: 'bomb', CROSS: 'cross' });
-    const GAME_STATE = Object.freeze({ MENU: 'MENU', PLAYING: 'PLAYING', REWARD: 'REWARD', GAME_OVER: 'GAME_OVER' });
+    const GAME_STATE = Object.freeze({ MENU: 'MENU', PLAYING: 'PLAYING', PAUSED: 'PAUSED', REWARD: 'REWARD', GAME_OVER: 'GAME_OVER' });
 
     const Utils = {
         delay: ms => new Promise(r => setTimeout(r, ms)),
@@ -278,6 +304,96 @@
         idx: (r, c) => r * Config.width + c,
         rcOf: i => [Math.floor(i / Config.width), i % Config.width]
     };
+
+    // ==========================================
+    // 音訊引擎：Web Audio API 即時合成 (無外部檔案)
+    // ==========================================
+    class AudioEngine {
+        constructor() {
+            this.ctx = null; this.master = null;
+            this.muted = (() => { try { return localStorage.getItem(Config.soundMutedKey) === '1'; } catch (_) { return false; } })();
+            this.bgmTimer = null; this.bgmStep = 0;
+        }
+        _ensure() {
+            if (!this.ctx) {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return false;
+                this.ctx = new Ctx();
+                this.master = this.ctx.createGain(); this.master.gain.value = 0.5;
+                this.master.connect(this.ctx.destination);
+            }
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+            return true;
+        }
+        _tone(freq, dur, type = 'sine', vol = 0.3, attack = 0.005) {
+            if (this.muted || !this._ensure()) return;
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+            osc.type = type; osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.0001, t);
+            gain.gain.exponentialRampToValueAtTime(vol, t + attack);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            osc.connect(gain).connect(this.master);
+            osc.start(t); osc.stop(t + dur + 0.05);
+        }
+        _glide(f1, f2, dur, type = 'sine', vol = 0.3) {
+            if (this.muted || !this._ensure()) return;
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(f1, t);
+            osc.frequency.exponentialRampToValueAtTime(Math.max(f2, 1), t + dur);
+            gain.gain.setValueAtTime(vol, t);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            osc.connect(gain).connect(this.master);
+            osc.start(t); osc.stop(t + dur + 0.05);
+        }
+        click() { this._tone(880, 0.04, 'square', 0.08); }
+        swap() { this._glide(420, 620, 0.1, 'triangle', 0.18); }
+        match() { this._glide(720, 1080, 0.14, 'triangle', 0.2); }
+        combo(n) {
+            const base = 600 + Math.min(n - 1, 8) * 70;
+            for (let i = 0; i < 3; i++) setTimeout(() => this._tone(base + i * 130, 0.09, 'triangle', 0.22), i * 55);
+        }
+        special() {
+            this._glide(1000, 1800, 0.18, 'sine', 0.18);
+            setTimeout(() => this._tone(2200, 0.06, 'sine', 0.14), 90);
+        }
+        explode() { this._glide(380, 60, 0.32, 'sawtooth', 0.26); }
+        levelClear() {
+            [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => setTimeout(() => this._tone(f, 0.22, 'triangle', 0.24), i * 90));
+        }
+        gameOver() {
+            [392, 349.23, 311.13, 261.63].forEach((f, i) => setTimeout(() => this._tone(f, 0.28, 'sawtooth', 0.22), i * 140));
+        }
+        trade() { this._glide(700, 1000, 0.13, 'sine', 0.2); setTimeout(() => this._tone(1300, 0.06, 'sine', 0.17), 70); }
+        fail() { this._tone(180, 0.18, 'square', 0.16); }
+        startBGM() {
+            if (this.muted || this.bgmTimer) return;
+            if (!this._ensure()) return;
+            const melody = [
+                { f: 523.25, d: 0.36 }, { f: 659.25, d: 0.36 }, { f: 783.99, d: 0.36 }, { f: 659.25, d: 0.36 },
+                { f: 587.33, d: 0.36 }, { f: 698.46, d: 0.36 }, { f: 880.00, d: 0.36 }, { f: 783.99, d: 0.36 }
+            ];
+            const interval = 380; this.bgmStep = 0;
+            const tick = () => {
+                if (this.muted) return;
+                const note = melody[this.bgmStep % melody.length];
+                this._tone(note.f, note.d, 'sine', 0.06, 0.04);
+                this._tone(note.f / 2, note.d * 1.3, 'triangle', 0.04, 0.03);
+                this.bgmStep++;
+            };
+            tick();
+            this.bgmTimer = setInterval(tick, interval);
+        }
+        stopBGM() { if (this.bgmTimer) { clearInterval(this.bgmTimer); this.bgmTimer = null; } }
+        toggleMute() {
+            this.muted = !this.muted;
+            try { localStorage.setItem(Config.soundMutedKey, this.muted ? '1' : '0'); } catch (_) {}
+            if (this.muted) this.stopBGM();
+            return this.muted;
+        }
+    }
 
     // ==========================================
     // 引擎核心：粒子、盤面、配對、渲染 (完整保留版)
@@ -427,40 +543,74 @@
         constructor() {
             this.fxEnabled = true;
             this.tradeMovesPool = 0; // 交易市場累積步數池
+            this.audio = new AudioEngine();
 
             this.board = new Board(); this.matcher = new MatchFinder(this.board);
             this.gridEl = document.getElementById('grid'); this.containerEl = document.getElementById('game-container');
             this.renderer = new Renderer(this.board, this.gridEl); this.particles = new ParticleEngine(document.getElementById('particles'), this.containerEl);
-            
+
             this.scoreEl = document.getElementById('score'); this.centerLabel = document.getElementById('center-label');
             this.centerVal = document.getElementById('center-val'); this.limitLabel = document.getElementById('limit-label');
             this.limitVal = document.getElementById('limit-val'); this.comboBanner = document.getElementById('comboBanner');
-            
+
             this.tradePost = document.getElementById('trade-post'); this.inventoryPanel = document.getElementById('inventory-panel');
             this.menuOverlay = document.getElementById('menu-overlay'); this.resultOverlay = document.getElementById('result-overlay');
             this.rewardOverlay = document.getElementById('reward-overlay');
-            
+            this.pauseBtn = document.getElementById('btn-pause'); this.resumeBtn = document.getElementById('btn-resume');
+            this.resultBestBadge = document.getElementById('result-best-badge');
+            this.tradeBtns = Array.from(document.querySelectorAll('.trade-btn'));
+            this.tradePoolEl = document.getElementById('trade-moves-pool');
+
             this.state = GAME_STATE.MENU; this.currentMode = 'ENDLESS';
-            this.score = 0; this.combo = 0; this.isProcessing = false; this.selectedIndex = -1;
-            
+            this.score = 0; this.combo = 0; this._isProcessing = false; this.selectedIndex = -1;
+
             this.timeLeft = 0; this.timerInterval = null; this.currentStageLevel = 1;
             this.movesLeft = 0; this.targetScore = 0;
             this.inventory = { DETONATE: 0, EXTRA_MOVES: 0, CLEAR: 0, SHUFFLE: 0 };
             this.bestScore = parseInt(localStorage.getItem(Config.bestScoreKey), 10) || 0;
+            this.bestScoreAtStart = this.bestScore;
 
-            this._setupLeaveGuard(); this._bindInputs(); this.renderer.render(); this._initialResolve();
+            this._setupLeaveGuard(); this._bindInputs(); this._bindGlobalClickSfx();
+            this._syncSoundButton();
+            this.renderer.render(); this._initialResolve();
+        }
+
+        get isProcessing() { return this._isProcessing; }
+        set isProcessing(v) {
+            this._isProcessing = v;
+            if (this.containerEl) this.containerEl.classList.toggle('processing', !!v);
+            if (this.tradeBtns) this._updateTradeUI();
         }
 
         toggleFX() {
             this.fxEnabled = !this.fxEnabled;
             const btn = document.getElementById('btn-fx-toggle');
             if (this.fxEnabled) {
-                document.body.classList.remove('disable-fx'); btn.textContent = '✨ 特效: ON';
-                btn.style.background = 'rgba(255, 255, 255, 0.4)'; btn.style.color = '#d81b60';
+                document.body.classList.remove('disable-fx');
+                btn.textContent = '✨ 特效'; btn.classList.remove('off');
             } else {
-                document.body.classList.add('disable-fx'); btn.textContent = '❌ 特效: OFF';
-                btn.style.background = 'rgba(0, 0, 0, 0.4)'; btn.style.color = '#fff';
+                document.body.classList.add('disable-fx');
+                btn.textContent = '🚫 特效'; btn.classList.add('off');
             }
+        }
+
+        toggleSound() {
+            const muted = this.audio.toggleMute();
+            this._syncSoundButton();
+            if (!muted && this.state === GAME_STATE.PLAYING) this.audio.startBGM();
+        }
+
+        _syncSoundButton() {
+            const btn = document.getElementById('btn-sound-toggle');
+            if (this.audio.muted) { btn.textContent = '🔇 聲音'; btn.classList.add('off'); }
+            else { btn.textContent = '🔊 聲音'; btn.classList.remove('off'); }
+        }
+
+        _bindGlobalClickSfx() {
+            document.addEventListener('click', e => {
+                const tgt = e.target.closest('button:not(:disabled), .reward-card');
+                if (tgt) this.audio.click();
+            }, true);
         }
 
         async _playFxFloatingText(text, targetEl) {
@@ -484,22 +634,58 @@
         showMenu() {
             this.state = GAME_STATE.MENU; this.menuOverlay.classList.add('active'); this.resultOverlay.classList.remove('active');
             this.tradePost.classList.remove('active'); this.inventoryPanel.classList.remove('active');
+            this.pauseBtn.style.display = 'none'; this.resumeBtn.style.display = 'none';
+            this.resultBestBadge.classList.remove('show');
+            if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
+            this.audio.stopBGM();
+        }
+
+        openPauseMenu() {
+            if (this.state !== GAME_STATE.PLAYING || this.isProcessing) return;
+            this.state = GAME_STATE.PAUSED;
+            this.menuOverlay.classList.add('active');
+            this.resumeBtn.style.display = 'block';
+            if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
+            this.audio.stopBGM();
+        }
+
+        resumeGame() {
+            if (this.state !== GAME_STATE.PAUSED) return;
+            this.menuOverlay.classList.remove('active');
+            this.resumeBtn.style.display = 'none';
+            this.state = GAME_STATE.PLAYING;
+            if (this.currentMode === 'TIME') this._startTimeTimer();
+            if (!this.audio.muted) this.audio.startBGM();
+        }
+
+        _startTimeTimer() {
             if (this.timerInterval) clearInterval(this.timerInterval);
+            this.timerInterval = setInterval(() => {
+                if (this.state !== GAME_STATE.PLAYING) return;
+                this.timeLeft--; this.limitVal.textContent = this.timeLeft + 's';
+                if (this.timeLeft <= 0) this._endGame(false);
+            }, 1000);
         }
 
         startMode(mode) {
             this.currentMode = mode; this.menuOverlay.classList.remove('active'); this.resultOverlay.classList.remove('active');
+            this.resumeBtn.style.display = 'none';
+            this.resultBestBadge.classList.remove('show');
+            this.pauseBtn.style.display = 'inline-block';
+
             if (mode === 'STAGE') {
                 this.currentStageLevel = 1; this.movesLeft = 20; this.score = 0; this.targetScore = 500;
                 this.inventory = { DETONATE: 0, EXTRA_MOVES: 0, CLEAR: 0, SHUFFLE: 0 }; this._updateInventoryUI();
                 this.tradeMovesPool = 0; // 開局餘額為0
-                
+
                 this.tradePost.classList.add('active'); this.inventoryPanel.classList.add('active');
                 this._initLevel(true);
             } else {
                 this.tradePost.classList.remove('active'); this.inventoryPanel.classList.remove('active');
                 this._initLevel(true);
             }
+            this.bestScoreAtStart = this.bestScore;
+            if (!this.audio.muted) this.audio.startBGM();
         }
 
         restartCurrentMode() { this.startMode(this.currentMode); }
@@ -513,11 +699,7 @@
                 this.centerLabel.textContent = 'BEST'; this.centerVal.textContent = this.bestScore; this.limitLabel.textContent = 'MODE'; this.limitVal.textContent = '∞';
             } else if (this.currentMode === 'TIME') {
                 this.timeLeft = 60; this.centerLabel.textContent = 'BEST'; this.centerVal.textContent = this.bestScore; this.limitLabel.textContent = 'TIME'; this.limitVal.textContent = this.timeLeft + 's';
-                this.timerInterval = setInterval(() => {
-                    if (this.state !== GAME_STATE.PLAYING) return;
-                    this.timeLeft--; this.limitVal.textContent = this.timeLeft + 's';
-                    if (this.timeLeft <= 0) this._endGame(false);
-                }, 1000);
+                this._startTimeTimer();
             } else if (this.currentMode === 'STAGE') {
                 this.centerLabel.textContent = `LV ${this.currentStageLevel} GOAL`; this.centerVal.textContent = this.targetScore;
                 this.limitLabel.textContent = 'MOVES'; this.limitVal.textContent = this.movesLeft; this.scoreEl.textContent = this.score;
@@ -530,14 +712,15 @@
             if (this.state !== GAME_STATE.PLAYING || this.isProcessing || this.currentMode !== 'STAGE') return;
             // 檢查累積餘額
             if (this.tradeMovesPool < cost) {
-                const poolEl = document.getElementById('trade-moves-pool');
-                poolEl.style.color = '#ffeb3b'; setTimeout(() => poolEl.style.color = '#333', 300);
+                this.tradePoolEl.style.color = '#ffeb3b'; setTimeout(() => this.tradePoolEl.style.color = '', 300);
+                this.audio.fail();
                 return;
             }
-            
+
             this.isProcessing = true;
             this.tradeMovesPool -= cost; // 只扣除餘額，不扣當前步數
             this._updateHUD();
+            this.audio.trade();
             await this._executePropEffect(type);
         }
 
@@ -548,9 +731,17 @@
             }
         }
 
+        _updateTradeUI() {
+            for (const btn of this.tradeBtns) {
+                const cost = parseInt(btn.dataset.cost, 10) || 0;
+                btn.disabled = (this.currentMode !== 'STAGE' || this.state !== GAME_STATE.PLAYING || this._isProcessing || this.tradeMovesPool < cost);
+            }
+        }
+
         async useInventory(type) {
             if (this.state !== GAME_STATE.PLAYING || this.isProcessing || this.inventory[type] <= 0) return;
             this.inventory[type]--; this._updateInventoryUI(); this.isProcessing = true;
+            this.audio.trade();
             await this._executePropEffect(type);
         }
 
@@ -558,8 +749,10 @@
             if (type === 'EXTRA_MOVES') {
                 const added = Math.floor(Math.random() * 5) + 1; this.movesLeft += added; this.limitVal.textContent = this.movesLeft;
                 this._playFxFloatingText(`+${added} MOVES`, this.limitVal);
-                this.limitVal.style.color = '#00e676'; setTimeout(() => this.limitVal.style.color = 'white', 500);
+                this.audio.special();
+                this.limitVal.style.color = '#00e676'; setTimeout(() => this.limitVal.style.color = '', 500);
             } else if (type === 'SHUFFLE') {
+                this.audio.special();
                 if (this.fxEnabled) { this.gridEl.classList.add('fx-shuffle-out'); await Utils.delay(250); }
                 const arr = this.board.data.filter(c => !c.empty); arr.sort(() => Math.random() - 0.5);
                 let idx = 0; for (let i = 0; i < this.board.data.length; i++) { if (!this.board.data[i].empty) { this.board.data[i] = arr[idx++]; this.board.data[i].fresh = true; } }
@@ -568,16 +761,19 @@
                 await Utils.delay(Config.timing.drop); await this._gameLoop();
             } else if (type === 'CLEAR' || type === 'RANDOM_CLEAR') {
                 this._playFxFlash('rgba(255, 235, 59, 0.5)');
+                this.audio.special();
                 const indices = new Set(); for (let i = 0; i < 5; i++) indices.add(Math.floor(Math.random() * 64));
                 await this._clearByIndices(indices); await this._dropCandies(); await this._gameLoop();
             } else if (type === 'DETONATE') {
                 this._playFxFlash('rgba(244, 67, 54, 0.5)');
+                this.audio.explode();
                 const specials = new Set(); for (let i = 0; i < this.board.data.length; i++) { if (this.board.data[i].special !== SPECIAL.NONE) specials.add(i); }
                 await this._clearByIndices(specials.size > 0 ? specials : new Set([Math.floor(Math.random() * 64)])); await this._dropCandies(); await this._gameLoop();
             } else if (type === 'SPAWN_BOMB' || type === 'SPAWN_CROSS') {
                 let idx = Math.floor(Math.random() * 64); let color = Utils.randomColor();
                 this.board.data[idx] = { color: color, special: type === 'SPAWN_BOMB' ? SPECIAL.BOMB : SPECIAL.CROSS, empty: false, fresh: true };
                 this.renderer.render();
+                this.audio.special();
                 if (this.fxEnabled) {
                     const elRect = this.renderer.elAt(...Utils.rcOf(idx)).getBoundingClientRect(), conRect = this.containerEl.getBoundingClientRect();
                     for(let i=0; i<8; i++) this.particles.emit(elRect.left - conRect.left + 22, elRect.top - conRect.top + 22, color);
@@ -592,6 +788,7 @@
             if (this.currentMode === 'STAGE') {
                 if (this.score >= this.targetScore) {
                     this.state = GAME_STATE.REWARD; this.isProcessing = true;
+                    this.audio.levelClear();
                     setTimeout(() => { this.rewardOverlay.classList.add('active'); }, 500);
                 } else if (this.movesLeft <= 0) { this._endGame(false); }
             }
@@ -621,9 +818,17 @@
         _endGame(isWin) {
             this.state = GAME_STATE.GAME_OVER; this.isProcessing = true;
             if (this.timerInterval) clearInterval(this.timerInterval);
+            this.audio.gameOver();
+            this.audio.stopBGM();
+            this.pauseBtn.style.display = 'none';
+
             const titleEl = document.getElementById('result-title'), descEl = document.getElementById('result-desc');
-            if (this.currentMode === 'STAGE') { titleEl.textContent = "Out of Moves! 😢"; descEl.innerHTML = `Score: <b>${this.score}</b> (Need ${this.targetScore})`; } 
+            const isNewBest = (this.currentMode === 'ENDLESS' || this.currentMode === 'TIME') && this.score > 0 && this.score > this.bestScoreAtStart;
+
+            if (this.currentMode === 'STAGE') { titleEl.textContent = "Out of Moves! 😢"; descEl.innerHTML = `Score: <b>${this.score}</b> (Need ${this.targetScore})`; }
             else { titleEl.textContent = "Time's Up!"; descEl.innerHTML = `Final Score: <b>${this.score}</b>`; }
+
+            this.resultBestBadge.classList.toggle('show', isNewBest);
             setTimeout(() => { this.resultOverlay.classList.add('active'); }, 800);
         }
 
@@ -674,20 +879,22 @@
 
         async _attemptSwap(r1, c1, r2, c2) {
             this.isProcessing = true; const s1 = this.board.get(r1, c1), s2 = this.board.get(r2, c2);
+            this.audio.swap();
             this.board.swap(r1, c1, r2, c2); this.renderer.render(); await Utils.delay(Config.timing.swap);
 
             if (await this._handleSpecialCombo(r1, c1, r2, c2, s1, s2)) { this._consumeMove(); await this._dropCandies(); await this._gameLoop(); return; }
 
             const { matched } = this.matcher.find();
-            if (matched.size > 0) { this._consumeMove(); this.combo = 0; await this._gameLoop(); } 
-            else { this.board.swap(r1, c1, r2, c2); this.renderer.render(); await Utils.delay(Config.timing.swap); this.isProcessing = false; }
+            if (matched.size > 0) { this._consumeMove(); this.combo = 0; await this._gameLoop(); }
+            else { this.board.swap(r1, c1, r2, c2); this.renderer.render(); await Utils.delay(Config.timing.swap); this.audio.fail(); this.isProcessing = false; }
         }
 
         async _handleSpecialCombo(r1, c1, r2, c2, s1, s2) {
             const sp1 = s1.special, sp2 = s2.special, isCross = s => s === SPECIAL.CROSS, isBomb = s => s === SPECIAL.BOMB, isStripe = s => s === SPECIAL.ROW || s === SPECIAL.COL;
-            if (isCross(sp1) && isCross(sp2)) { this.combo = 1; const all = new Set(); for (let i = 0; i < this.board.data.length; i++) all.add(i); await this._clearByIndices(all); return true; }
+            if (isCross(sp1) && isCross(sp2)) { this.combo = 1; this.audio.explode(); const all = new Set(); for (let i = 0; i < this.board.data.length; i++) all.add(i); await this._clearByIndices(all); return true; }
             if (isCross(sp1) || isCross(sp2)) {
-                this.combo = 1; const crossPos = isCross(sp1) ? { r: r2, c: c2 } : { r: r1, c: c1 }, targetColor = isCross(sp1) ? s2.color : s1.color;
+                this.combo = 1; this.audio.special();
+                const crossPos = isCross(sp1) ? { r: r2, c: c2 } : { r: r1, c: c1 }, targetColor = isCross(sp1) ? s2.color : s1.color;
                 const indices = new Set(); indices.add(Utils.idx(crossPos.r, crossPos.c));
                 for (let i = 0; i < this.board.data.length; i++) {
                     if (this.board.data[i].empty || this.board.data[i].color !== targetColor) continue;
@@ -700,24 +907,24 @@
                 await this._clearByIndices(indices); return true;
             }
             if (isBomb(sp1) && isBomb(sp2)) {
-                this.combo = 1; const indices = new Set();
+                this.combo = 1; this.audio.explode(); const indices = new Set();
                 for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) if (Utils.inBounds(r2 + dr, c2 + dc)) indices.add(Utils.idx(r2 + dr, c2 + dc));
                 await this._clearByIndices(indices); return true;
             }
             if ((isBomb(sp1) && isStripe(sp2)) || (isStripe(sp1) && isBomb(sp2))) {
-                this.combo = 1; const indices = new Set();
+                this.combo = 1; this.audio.explode(); const indices = new Set();
                 for (let i = -1; i <= 1; i++) { for (let c = 0; c < Config.width; c++) if (Utils.inBounds(r2 + i, c)) indices.add(Utils.idx(r2 + i, c)); for (let r = 0; r < Config.height; r++) if (Utils.inBounds(r, c2 + i)) indices.add(Utils.idx(r, c2 + i)); }
                 await this._clearByIndices(indices); return true;
             }
             if (isStripe(sp1) && isStripe(sp2)) {
-                this.combo = 1; const indices = new Set();
+                this.combo = 1; this.audio.explode(); const indices = new Set();
                 for (let c = 0; c < Config.width; c++) indices.add(Utils.idx(r2, c)); for (let r = 0; r < Config.height; r++) indices.add(Utils.idx(r, c2));
                 await this._clearByIndices(indices); return true;
             }
             return false;
         }
 
-        async _detonateAt(r, c) { await this._clearByIndices(new Set([Utils.idx(r, c)])); }
+        async _detonateAt(r, c) { this.audio.explode(); await this._clearByIndices(new Set([Utils.idx(r, c)])); }
 
         async _clearByIndices(seeds, isInit = false) {
             const toProcess = [], queued = new Set(), finalClear = [];
@@ -752,10 +959,13 @@
                 for (const t of finalClear) {
                     const el = this.renderer.elAt(t.r, t.c), rect = el.getBoundingClientRect();
                     this.particles.emit(rect.left - conRect.left + rect.width / 2, rect.top - conRect.top + rect.height / 2, t.color);
-                    
+
                     // 加入消除動畫 class (clearPop 動畫)
                     el.classList.add('clearing');
                 }
+
+                if (this.combo > 1) this.audio.combo(this.combo); else this.audio.match();
+
                 if (finalClear.length > 5 || this.combo > 1) {
                     if (this.fxEnabled) {
                         this.containerEl.classList.add('shake-screen'); setTimeout(() => this.containerEl.classList.remove('shake-screen'), 300);
@@ -790,6 +1000,7 @@
                 const indicesToClear = new Set(matched), reservedSpawns = [];
                 for (const sp of specials) { const idx = Utils.idx(sp.r, sp.c); if (indicesToClear.has(idx)) { indicesToClear.delete(idx); reservedSpawns.push(sp); } }
                 await this._clearByIndices(indicesToClear, isInit);
+                if (reservedSpawns.length > 0 && !isInit) this.audio.special();
                 for (const sp of reservedSpawns) this.board.set(sp.r, sp.c, { color: sp.color, special: sp.type, empty: false, fresh: true });
                 this.renderer.render(); await this._dropCandies();
             }
@@ -799,8 +1010,9 @@
 
         _updateHUD() {
             this.scoreEl.textContent = this.score;
-            document.getElementById('trade-moves-pool').textContent = this.tradeMovesPool; // 更新餘額顯示
-            
+            this.tradePoolEl.textContent = this.tradeMovesPool; // 更新餘額顯示
+            this._updateTradeUI();
+
             if(this.fxEnabled) { this.scoreEl.classList.remove('bump'); void this.scoreEl.offsetWidth; this.scoreEl.classList.add('bump'); }
             if ((this.currentMode === 'ENDLESS' || this.currentMode === 'TIME') && this.score > this.bestScore) {
                 this.bestScore = this.score; this.centerVal.textContent = this.bestScore; try { localStorage.setItem(Config.bestScoreKey, String(this.bestScore)); } catch (_) {}
