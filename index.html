@@ -298,7 +298,8 @@
         particles: { count: 14, spread: 11, gravity: 0.4, decay: 0.04 },
         swipeThreshold: 20,
         bestScoreKey: 'sweetCandy_bestScore_v10',
-        soundMutedKey: 'sweetCandy_soundMuted_v1'
+        soundMutedKey: 'sweetCandy_soundMuted_v1',
+        maxTradePool: 50
     });
 
     // 關卡背景配色表 (闖關模式每升一級切換,其餘模式固定第 0 組)
@@ -703,7 +704,7 @@
             this.timerInterval = setInterval(() => {
                 if (this.state !== GAME_STATE.PLAYING) return;
                 this.timeLeft--; this.limitVal.textContent = this.timeLeft + 's';
-                if (this.timeLeft <= 0) this._endGame(false);
+                if (this.timeLeft <= 0) this._endGame('TIME_UP');
             }, 1000);
         }
 
@@ -832,7 +833,7 @@
                     this.audio.levelClear();
                     this._prepareRewardModal();
                     setTimeout(() => { this.rewardOverlay.classList.add('active'); }, 500);
-                } else if (this.movesLeft <= 0) { this._endGame(false); }
+                } else if (this.movesLeft <= 0) { this._endGame('OUT_OF_MOVES'); }
             }
         }
 
@@ -865,8 +866,8 @@
         claimReward() {
             this.rewardOverlay.classList.remove('active');
 
-            // 核心：剩餘步數存入交易所餘額
-            this.tradeMovesPool += this.movesLeft;
+            // 核心：剩餘步數存入交易所餘額(含上限保護)
+            this.tradeMovesPool = Math.min(this.tradeMovesPool + this.movesLeft, Config.maxTradePool);
 
             // 準備下一關
             this.currentStageLevel++;
@@ -881,7 +882,7 @@
             this._applyTheme(this.currentStageLevel);
         }
 
-        _endGame(isWin) {
+        _endGame(reason) {
             this.state = GAME_STATE.GAME_OVER; this.isProcessing = true;
             if (this.timerInterval) clearInterval(this.timerInterval);
             this.audio.gameOver();
@@ -891,8 +892,16 @@
             const titleEl = document.getElementById('result-title'), descEl = document.getElementById('result-desc');
             const isNewBest = (this.currentMode === 'ENDLESS' || this.currentMode === 'TIME') && this.score > 0 && this.score > this.bestScoreAtStart;
 
-            if (this.currentMode === 'STAGE') { titleEl.textContent = "Out of Moves! 😢"; descEl.innerHTML = `Score: <b>${this.score}</b> (Need ${this.targetScore})`; }
-            else { titleEl.textContent = "Time's Up!"; descEl.innerHTML = `Final Score: <b>${this.score}</b>`; }
+            if (reason === 'OUT_OF_MOVES') {
+                titleEl.textContent = `LV ${this.currentStageLevel} 步數用盡 😢`;
+                descEl.innerHTML = `Score: <b>${this.score}</b> / ${this.targetScore}`;
+            } else if (reason === 'TIME_UP') {
+                titleEl.textContent = "時間到！⏰";
+                descEl.innerHTML = `Final Score: <b>${this.score}</b>`;
+            } else {
+                titleEl.textContent = 'Game Over';
+                descEl.innerHTML = `Score: <b>${this.score}</b>`;
+            }
 
             this.resultBestBadge.classList.toggle('show', isNewBest);
             setTimeout(() => { this.resultOverlay.classList.add('active'); }, 800);
@@ -960,13 +969,28 @@
             if (isCross(sp1) && isCross(sp2)) { this.combo = 1; this.audio.explode(); const all = new Set(); for (let i = 0; i < this.board.data.length; i++) all.add(i); await this._clearByIndices(all); return true; }
             if (isCross(sp1) || isCross(sp2)) {
                 this.combo = 1; this.audio.special();
-                const crossPos = isCross(sp1) ? { r: r2, c: c2 } : { r: r1, c: c1 }, targetColor = isCross(sp1) ? s2.color : s1.color;
-                const indices = new Set(); indices.add(Utils.idx(crossPos.r, crossPos.c));
+                // 解構：把 cross 與「另一顆」分開,後續邏輯就不用反覆判斷 sp1/sp2 哪個是 cross
+                const crossR = isCross(sp1) ? r2 : r1;
+                const crossC = isCross(sp1) ? c2 : c1;
+                const partner = isCross(sp1) ? s2 : s1;
+                const targetColor = partner.color;
+                const partnerSpecial = partner.special;
+
+                const indices = new Set();
+                indices.add(Utils.idx(crossR, crossC));
+
                 for (let i = 0; i < this.board.data.length; i++) {
-                    if (this.board.data[i].empty || this.board.data[i].color !== targetColor) continue;
-                    if (isCross(sp1) ? s2.special !== SPECIAL.NONE : s1.special !== SPECIAL.NONE) {
-                        let infect = isCross(sp1) ? s2.special : s1.special; if (infect === SPECIAL.ROW || infect === SPECIAL.COL) infect = Math.random() > 0.5 ? SPECIAL.ROW : SPECIAL.COL;
-                        this.board.data[i].special = infect;
+                    const cell = this.board.data[i];
+                    if (cell.empty || cell.color !== targetColor) continue;
+
+                    // 規則：若 partner 也是特殊糖,則「感染」同色糖讓它們也變特殊
+                    //       條紋(ROW/COL)感染時隨機決定方向,讓爆破不可預測
+                    if (partnerSpecial !== SPECIAL.NONE) {
+                        let infect = partnerSpecial;
+                        if (infect === SPECIAL.ROW || infect === SPECIAL.COL) {
+                            infect = Math.random() > 0.5 ? SPECIAL.ROW : SPECIAL.COL;
+                        }
+                        cell.special = infect;
                     }
                     indices.add(i);
                 }
@@ -1077,6 +1101,8 @@
         _updateHUD() {
             this.scoreEl.textContent = this.score;
             this.tradePoolEl.textContent = this.tradeMovesPool; // 更新餘額顯示
+            this.tradePoolEl.style.color = this.tradeMovesPool >= Config.maxTradePool ? '#ff6f00' : '';
+            this.tradePoolEl.title = `上限 ${Config.maxTradePool} 步`;
             this._updateTradeUI();
 
             if(this.fxEnabled) { this.scoreEl.classList.remove('bump'); void this.scoreEl.offsetWidth; this.scoreEl.classList.add('bump'); }
