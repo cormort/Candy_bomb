@@ -338,34 +338,78 @@
     };
 
     // ==========================================
-    // BGM 譜表：Bach - Minuet in G major (BWV Anh. 114), A 段 8 小節
-    // 3/4 拍,quarter = 0.5s (≈120 BPM)。bass 欄位填和弦根音(每小節僅在第一拍給出)
+    // BGM 譜表：每首 ~8-14 秒循環,STAGE 模式每 10 關切換下一首
+    // 結構：{ f: 主旋律頻率, d: 秒數, bass?: 該拍的和弦根音 (僅標於小節首拍即可) }
     // ==========================================
-    const BGM_MELODY = Object.freeze([
-        // Bar 1 (G): D5 quarter | G4 A4 B4 C5 eighths
+
+    // Tchaikovsky - Dance of the Sugar Plum Fairy (E 小調,celesta 主題簡化版)
+    const BGM_SUGAR_PLUM = Object.freeze([
+        { f: 659.25, d: 0.3,  bass: 164.81 }, { f: 659.25, d: 0.3 },
+        { f: 659.25, d: 0.15 }, { f: 622.25, d: 0.15 }, { f: 659.25, d: 0.3 },
+        { f: 659.25, d: 0.3,  bass: 220.00 }, { f: 493.88, d: 0.3 },
+        { f: 587.33, d: 0.3 }, { f: 523.25, d: 0.3 },
+        { f: 659.25, d: 0.3,  bass: 164.81 }, { f: 659.25, d: 0.3 },
+        { f: 659.25, d: 0.15 }, { f: 622.25, d: 0.15 }, { f: 659.25, d: 0.3 },
+        { f: 493.88, d: 0.3,  bass: 220.00 }, { f: 440.00, d: 0.6 },
+        // 高音閃爍下行 (celesta 招牌音色)
+        { f: 880.00, d: 0.2,  bass: 246.94 }, { f: 987.77, d: 0.2 },
+        { f: 1046.50, d: 0.2 }, { f: 987.77, d: 0.2 },
+        { f: 880.00, d: 0.2 }, { f: 783.99, d: 0.2 },
+        { f: 740.00, d: 0.2 }, { f: 659.25, d: 0.4 },
+        // 終止
+        { f: 587.33, d: 0.3,  bass: 220.00 }, { f: 523.25, d: 0.3 },
+        { f: 493.88, d: 0.3 }, { f: 440.00, d: 0.6 }
+    ]);
+
+    // Bach - Minuet in G major (BWV Anh. 114) A 段 8 小節,3/4 拍
+    const BGM_MINUET = Object.freeze([
         { f: 587.33, d: 0.5,  bass: 196.00 },
         { f: 392.00, d: 0.25 }, { f: 440.00, d: 0.25 }, { f: 493.88, d: 0.25 }, { f: 523.25, d: 0.25 },
-        // Bar 2 (G): D5 | G4 | G4
         { f: 587.33, d: 0.5,  bass: 196.00 },
         { f: 392.00, d: 0.5 }, { f: 392.00, d: 0.5 },
-        // Bar 3 (C): E5 | C5 D5 | E5 F#5
         { f: 659.25, d: 0.5,  bass: 261.63 },
         { f: 523.25, d: 0.25 }, { f: 587.33, d: 0.25 }, { f: 659.25, d: 0.25 }, { f: 739.99, d: 0.25 },
-        // Bar 4 (G): G5 | G4 | G4
         { f: 783.99, d: 0.5,  bass: 196.00 },
         { f: 392.00, d: 0.5 }, { f: 392.00, d: 0.5 },
-        // Bar 5 (C): C5 | D5 C5 | B4 A4
         { f: 523.25, d: 0.5,  bass: 261.63 },
         { f: 587.33, d: 0.25 }, { f: 523.25, d: 0.25 }, { f: 493.88, d: 0.25 }, { f: 440.00, d: 0.25 },
-        // Bar 6 (G): B4 | C5 B4 | A4 G4
         { f: 493.88, d: 0.5,  bass: 196.00 },
         { f: 523.25, d: 0.25 }, { f: 493.88, d: 0.25 }, { f: 440.00, d: 0.25 }, { f: 392.00, d: 0.25 },
-        // Bar 7 (D): F#4 | G4 A4 | B4 G4
         { f: 369.99, d: 0.5,  bass: 146.83 },
         { f: 392.00, d: 0.25 }, { f: 440.00, d: 0.25 }, { f: 493.88, d: 0.25 }, { f: 392.00, d: 0.25 },
-        // Bar 8 (D): A4 dotted half (半終止,接回 bar 1 的 D5)
         { f: 440.00, d: 1.5,  bass: 146.83 }
     ]);
+
+    // Pachelbel - Canon in D (8 小節著名和聲循環: D-A-Bm-F#m-G-D-G-A)
+    const BGM_CANON = Object.freeze([
+        { f: 739.99, d: 0.4,  bass: 146.83 }, { f: 659.25, d: 0.4 }, { f: 587.33, d: 0.4 }, { f: 554.37, d: 0.4 },
+        { f: 493.88, d: 0.4,  bass: 220.00 }, { f: 440.00, d: 0.4 }, { f: 493.88, d: 0.4 }, { f: 554.37, d: 0.4 },
+        { f: 587.33, d: 0.4,  bass: 246.94 }, { f: 554.37, d: 0.4 }, { f: 493.88, d: 0.4 }, { f: 440.00, d: 0.4 },
+        { f: 392.00, d: 0.4,  bass: 185.00 }, { f: 369.99, d: 0.4 }, { f: 392.00, d: 0.4 }, { f: 329.63, d: 0.4 },
+        { f: 369.99, d: 0.4,  bass: 196.00 }, { f: 293.66, d: 0.4 }, { f: 329.63, d: 0.4 }, { f: 369.99, d: 0.4 },
+        { f: 392.00, d: 0.4,  bass: 146.83 }, { f: 369.99, d: 0.4 }, { f: 329.63, d: 0.4 }, { f: 293.66, d: 0.4 },
+        { f: 523.25, d: 0.4,  bass: 196.00 }, { f: 493.88, d: 0.4 }, { f: 440.00, d: 0.4 }, { f: 392.00, d: 0.4 },
+        { f: 369.99, d: 0.4,  bass: 220.00 }, { f: 329.63, d: 0.4 }, { f: 369.99, d: 0.4 }, { f: 440.00, d: 0.4 }
+    ]);
+
+    // Mozart - Eine kleine Nachtmusik K.525 第一樂章開頭 (G 大調,4/4 拍)
+    const BGM_NACHTMUSIK = Object.freeze([
+        { f: 392.00, d: 0.4,  bass: 196.00 }, { f: 587.33, d: 0.4 }, { f: 392.00, d: 0.4 }, { f: 587.33, d: 0.4 },
+        { f: 392.00, d: 0.4,  bass: 196.00 }, { f: 587.33, d: 0.4 }, { f: 783.99, d: 0.8 },
+        { f: 587.33, d: 0.2,  bass: 146.83 }, { f: 587.33, d: 0.2 }, { f: 587.33, d: 0.2 }, { f: 493.88, d: 0.6 },
+        { f: 440.00, d: 0.2,  bass: 220.00 }, { f: 523.25, d: 0.2 }, { f: 523.25, d: 0.2 }, { f: 369.99, d: 0.6 },
+        { f: 440.00, d: 0.2,  bass: 220.00 }, { f: 523.25, d: 0.2 }, { f: 523.25, d: 0.2 }, { f: 783.99, d: 0.6 },
+        { f: 392.00, d: 0.2,  bass: 196.00 }, { f: 392.00, d: 0.2 }, { f: 392.00, d: 0.2 }, { f: 392.00, d: 0.2 },
+        { f: 587.33, d: 0.4,  bass: 196.00 }, { f: 587.33, d: 0.4 }, { f: 783.99, d: 0.8 }
+    ]);
+
+    const BGM_TRACKS = Object.freeze([
+        { name: '糖梅仙子之舞 (Tchaikovsky)',     melody: BGM_SUGAR_PLUM },
+        { name: 'Minuet in G (Bach)',             melody: BGM_MINUET    },
+        { name: 'Canon in D (Pachelbel)',         melody: BGM_CANON     },
+        { name: 'Eine kleine Nachtmusik (Mozart)', melody: BGM_NACHTMUSIK }
+    ]);
+    const BGM_TRACK_PER_STAGES = 10;
 
     // ==========================================
     // 音訊引擎：Web Audio API 即時合成 (無外部檔案)
@@ -374,7 +418,7 @@
         constructor() {
             this.ctx = null; this.master = null;
             this.muted = (() => { try { return localStorage.getItem(Config.soundMutedKey) === '1'; } catch (_) { return false; } })();
-            this.bgmTimer = null; this._bgmActive = false;
+            this.bgmTimer = null; this._bgmActive = false; this._currentTrack = 0;
         }
         _ensure() {
             if (!this.ctx) {
@@ -430,20 +474,28 @@
         }
         trade() { this._glide(700, 1000, 0.13, 'sine', 0.2); setTimeout(() => this._tone(1300, 0.06, 'sine', 0.17), 70); }
         fail() { this._tone(180, 0.18, 'square', 0.16); }
-        startBGM() {
+        startBGM(trackIndex = 0) {
             if (this.muted || this._bgmActive) return;
             if (!this._ensure()) return;
+            this._currentTrack = ((trackIndex % BGM_TRACKS.length) + BGM_TRACKS.length) % BGM_TRACKS.length;
             this._bgmActive = true;
             let i = 0;
             const playNext = () => {
                 if (!this._bgmActive || this.muted) { this._bgmActive = false; this.bgmTimer = null; return; }
-                const note = BGM_MELODY[i % BGM_MELODY.length];
+                const melody = BGM_TRACKS[this._currentTrack].melody;
+                const note = melody[i % melody.length];
                 this._tone(note.f, note.d * 0.92, 'sine', 0.06, 0.04);
                 if (note.bass) this._tone(note.bass, note.d * 1.4, 'triangle', 0.045, 0.03);
                 i++;
                 this.bgmTimer = setTimeout(playNext, note.d * 1000);
             };
             playNext();
+        }
+        switchTrack(trackIndex) {
+            const target = ((trackIndex % BGM_TRACKS.length) + BGM_TRACKS.length) % BGM_TRACKS.length;
+            if (this._currentTrack === target && this._bgmActive) return;
+            this.stopBGM();
+            this.startBGM(target);
         }
         stopBGM() {
             this._bgmActive = false;
@@ -631,6 +683,7 @@
             this.inventory = { DETONATE: 0, EXTRA_MOVES: 0, CLEAR: 0, SHUFFLE: 0 };
             this.bestScore = parseInt(localStorage.getItem(Config.bestScoreKey), 10) || 0;
             this.bestScoreAtStart = this.bestScore;
+            this._bgmStartOffset = 0; // 每次開局隨機抽一首當起點,後續循環從這裡接著走
 
             this._setupLeaveGuard(); this._bindInputs(); this._bindGlobalClickSfx();
             this._syncSoundButton();
@@ -659,7 +712,15 @@
         toggleSound() {
             const muted = this.audio.toggleMute();
             this._syncSoundButton();
-            if (!muted && this.state === GAME_STATE.PLAYING) this.audio.startBGM();
+            if (!muted && this.state === GAME_STATE.PLAYING) this.audio.startBGM(this._bgmTrackForCurrentMode());
+        }
+
+        _bgmTrackForLevel(level) {
+            const cycle = Math.floor((Math.max(level, 1) - 1) / BGM_TRACK_PER_STAGES);
+            return (this._bgmStartOffset + cycle) % BGM_TRACKS.length;
+        }
+        _bgmTrackForCurrentMode() {
+            return this.currentMode === 'STAGE' ? this._bgmTrackForLevel(this.currentStageLevel) : this._bgmStartOffset;
         }
 
         _applyTheme(level) {
@@ -726,7 +787,7 @@
             this.resumeBtn.style.display = 'none';
             this.state = GAME_STATE.PLAYING;
             if (this.currentMode === 'TIME') this._startTimeTimer();
-            if (!this.audio.muted) this.audio.startBGM();
+            if (!this.audio.muted) this.audio.startBGM(this._bgmTrackForCurrentMode());
         }
 
         _startTimeTimer() {
@@ -756,8 +817,9 @@
                 this._initLevel(true);
             }
             this.bestScoreAtStart = this.bestScore;
+            this._bgmStartOffset = Math.floor(Math.random() * BGM_TRACKS.length);
             this._applyTheme(mode === 'STAGE' ? this.currentStageLevel : 1);
-            if (!this.audio.muted) this.audio.startBGM();
+            if (!this.audio.muted) this.audio.startBGM(this._bgmTrackForCurrentMode());
         }
 
         restartCurrentMode() { this.startMode(this.currentMode); }
@@ -910,6 +972,7 @@
             this.centerLabel.textContent = `LV ${this.currentStageLevel} GOAL`;
             this.centerVal.textContent = this.targetScore;
             this._applyTheme(this.currentStageLevel);
+            if (!this.audio.muted) this.audio.switchTrack(this._bgmTrackForLevel(this.currentStageLevel));
         }
 
         _endGame(reason) {
