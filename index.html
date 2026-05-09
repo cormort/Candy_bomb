@@ -319,7 +319,7 @@
     const ItemInfo = Object.freeze({
         DETONATE:    { name: '🧨 炸彈遙控器',   desc: '引爆畫面所有特殊糖果' },
         EXTRA_MOVES: { name: '🎁 幸運步數錦囊', desc: '隨機恢復 1~5 步' },
-        CLEAR:       { name: '✨ 精準消除魔杖', desc: '隨機清空盤面 5 個位置' },
+        CLEAR:       { name: '✨ 隨機消除魔杖', desc: '隨機清空盤面 5 個位置' },
         SHUFFLE:     { name: '🔀 乾坤大挪移',   desc: '保留特殊糖果,其餘全盤洗牌' }
     });
     const ItemKeys = Object.freeze(Object.keys(ItemInfo));
@@ -1065,29 +1065,47 @@
                 // 解構：把 cross 與「另一顆」分開,後續邏輯就不用反覆判斷 sp1/sp2 哪個是 cross
                 const crossR = isCross(sp1) ? r2 : r1;
                 const crossC = isCross(sp1) ? c2 : c1;
+                const partnerR = isCross(sp1) ? r1 : r2;
+                const partnerC = isCross(sp1) ? c1 : c2;
                 const partner = isCross(sp1) ? s2 : s1;
                 const targetColor = partner.color;
                 const partnerSpecial = partner.special;
 
-                const indices = new Set();
-                indices.add(Utils.idx(crossR, crossC));
+                if (partnerSpecial !== SPECIAL.NONE) {
+                    // 設置型 combo: cross + 特殊糖
+                    //   把同色糖「變身」成 partner 的特殊類型(條紋方向隨機)
+                    //   只消耗 cross 與 partner 兩顆,被感染的特殊糖留在盤面讓玩家後續引爆
+                    const crossIdx = Utils.idx(crossR, crossC);
+                    const partnerIdx = Utils.idx(partnerR, partnerC);
 
-                for (let i = 0; i < this.board.data.length; i++) {
-                    const cell = this.board.data[i];
-                    if (cell.empty || cell.color !== targetColor) continue;
-
-                    // 規則：若 partner 也是特殊糖,則「感染」同色糖讓它們也變特殊
-                    //       條紋(ROW/COL)感染時隨機決定方向,讓爆破不可預測
-                    if (partnerSpecial !== SPECIAL.NONE) {
+                    for (let i = 0; i < this.board.data.length; i++) {
+                        const cell = this.board.data[i];
+                        if (cell.empty || cell.color !== targetColor) continue;
+                        if (i === crossIdx || i === partnerIdx) continue; // cross/partner 自己跳過
                         let infect = partnerSpecial;
                         if (infect === SPECIAL.ROW || infect === SPECIAL.COL) {
                             infect = Math.random() > 0.5 ? SPECIAL.ROW : SPECIAL.COL;
                         }
                         cell.special = infect;
                     }
-                    indices.add(i);
+
+                    // 中和 cross/partner 自己的特殊性,避免清除時觸發各自的連鎖效果
+                    this.board.data[crossIdx].special = SPECIAL.NONE;
+                    this.board.data[partnerIdx].special = SPECIAL.NONE;
+                    this.renderer.render();
+
+                    await this._clearByIndices(new Set([crossIdx, partnerIdx]));
+                } else {
+                    // cross + 一般糖: 標準彩虹效果,清除所有同色糖
+                    const indices = new Set();
+                    indices.add(Utils.idx(crossR, crossC));
+                    for (let i = 0; i < this.board.data.length; i++) {
+                        if (this.board.data[i].empty || this.board.data[i].color !== targetColor) continue;
+                        indices.add(i);
+                    }
+                    await this._clearByIndices(indices);
                 }
-                await this._clearByIndices(indices); return true;
+                return true;
             }
             if (isBomb(sp1) && isBomb(sp2)) {
                 this.combo = 1; this.audio.explode(); const indices = new Set();
