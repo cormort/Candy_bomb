@@ -114,6 +114,33 @@
         .combo-banner { position: fixed; top: 38%; left: 50%; transform: translate(-50%, -50%); font-size: 56px; font-weight: 900; color: #fff; text-shadow: 0 4px 20px rgba(216, 27, 96, 0.85); pointer-events: none; z-index: 999; opacity: 0; }
         .combo-banner.show { animation: comboFloat 1s ease-out forwards; }
         @keyframes comboFloat { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.5); } 25% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); } 70% { opacity: 1; transform: translate(-50%, -55%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -85%) scale(0.85); } }
+        .combo-banner.tier-2 { color: #ff6491; }
+        .combo-banner.tier-3 { color: #ff9100; }
+        .combo-banner.tier-4 { color: #ff1744; }
+        .combo-banner.tier-5 { color: #aa00ff; text-shadow: 0 4px 20px rgba(170, 0, 255, 0.9); }
+        .combo-banner.tier-6 { color: #ffd54f; text-shadow: 0 0 30px gold, 0 4px 20px rgba(255, 213, 79, 0.95); font-size: 68px; }
+
+        /* 里程碑橫幅 (ENDLESS / TIME 達 1k / 5k / 10k...) */
+        .milestone-banner {
+            position: fixed; top: 32%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 60px; font-weight: 900; color: #ffd54f;
+            text-shadow: 0 0 30px #ff9100, 0 4px 20px rgba(0,0,0,0.45);
+            pointer-events: none; z-index: 1500; opacity: 0; white-space: nowrap;
+        }
+        .milestone-banner.show { animation: milestoneShow 1.8s ease-out forwards; }
+        @keyframes milestoneShow {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-12deg); }
+            18% { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(4deg); }
+            32% { transform: translate(-50%, -50%) scale(1) rotate(0); }
+            100% { opacity: 0; transform: translate(-50%, -130%) scale(1.4); }
+        }
+
+        /* 卡關提示 — idle 8 秒後在可消除位置閃爍 */
+        .candy.hint { animation: hintPulse 0.75s ease-in-out infinite; z-index: 3; }
+        @keyframes hintPulse {
+            0%, 100% { transform: scale(1); box-shadow: inset -5px -5px 12px rgba(0,0,0,0.22), inset 5px 5px 12px rgba(255,255,255,0.75), 0 0 0 rgba(255, 235, 59, 0); }
+            50% { transform: scale(1.13); box-shadow: inset -5px -5px 12px rgba(0,0,0,0.22), inset 5px 5px 12px rgba(255,255,255,0.75), 0 0 22px 6px rgba(255, 235, 59, 0.95); }
+        }
         .shake-screen { animation: shake 0.3s ease-in-out; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
         
@@ -169,6 +196,20 @@
         .reward-card { background: #fff0f5; border: 2px solid #ffb6c1; padding: 12px; border-radius: 15px; margin-bottom: 10px; text-align: left; display: flex; flex-direction: column; transition: 0.2s; }
         .reward-card b { font-size: 16px; color: #d81b60; }
         .reward-card small { font-size: 12px; color: #555; margin-top: 4px; }
+
+        /* 過關星等 */
+        .star-display {
+            margin: 4px 0 12px; display: flex; justify-content: center; gap: 10px; font-size: 36px;
+        }
+        .star-display span { animation: starPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; display: inline-block; }
+        .star-display span:nth-child(2) { animation-delay: 0.15s; }
+        .star-display span:nth-child(3) { animation-delay: 0.3s; }
+        .star-display span.empty { filter: grayscale(1); opacity: 0.25; }
+        @keyframes starPop { 0% { transform: scale(0.3) rotate(-30deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+
+        /* 主選單累積星數 */
+        .menu-stars-line { color: #999; font-size: 14px; margin: -10px 0 14px; }
+        .menu-stars-line b { color: #ff9100; font-size: 16px; }
 
         /* 5 關獎勵展示 */
         .reward-bonus { background: linear-gradient(135deg, #fff8e1, #ffe082); border: 2px solid #ffb300; padding: 14px; border-radius: 16px; margin: 0 0 14px 0; box-shadow: 0 6px 18px rgba(255, 145, 0, 0.3); animation: bonusReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
@@ -228,6 +269,7 @@
         <canvas id="particles"></canvas>
     </div>
     <div class="combo-banner" id="comboBanner"></div>
+    <div class="milestone-banner" id="milestoneBanner"></div>
 
     <!-- 交易市場 -->
     <div class="shop-container" id="trade-post">
@@ -255,6 +297,7 @@
     <div id="menu-overlay" class="overlay active">
         <div class="modal">
             <h2>Sweet Candy 🍭</h2>
+            <p class="menu-stars-line">累積星數 <b>⭐ <span id="menu-total-stars">0</span></b></p>
             <button class="btn resume-btn" id="btn-resume" style="display: none;" onclick="window.game.resumeGame()">▶️ 繼續遊戲</button>
             <button class="btn" onclick="window.game.startMode('ENDLESS')">♾️ 無盡模式</button>
             <button class="btn" onclick="window.game.startMode('TIME')">⏱️ 計時模式 (60秒)</button>
@@ -265,6 +308,7 @@
     <div id="reward-overlay" class="overlay">
         <div class="modal">
             <h2 id="reward-title">Level Clear! 🎉</h2>
+            <div id="reward-stars" class="star-display"></div>
             <p style="color:#d81b60; font-weight:bold;">剩餘步數已轉入交易所餘額！</p>
             <div id="reward-bonus" class="reward-bonus" style="display: none;">
                 <span class="bonus-label">🎁 隨機獎勵入手</span>
@@ -299,8 +343,14 @@
         swipeThreshold: 20,
         bestScoreKey: 'sweetCandy_bestScore_v10',
         soundMutedKey: 'sweetCandy_soundMuted_v1',
-        maxTradePool: 50
+        totalStarsKey: 'sweetCandy_totalStars_v1',
+        maxTradePool: 50,
+        hintIdleMs: 8000,
+        endlessMilestones: [1000, 5000, 10000, 25000, 50000, 100000]
     });
+
+    // Combo 等級命名 (索引 = combo 數,2 起算才顯示)
+    const COMBO_LABELS = ['', '', 'Sweet!', 'Sugar Rush!', 'DELICIOUS!', 'CANDY STORM!', 'LEGENDARY!'];
 
     // 關卡背景配色表 (闖關模式每升一級切換,其餘模式固定第 0 組)
     const Themes = Object.freeze([
@@ -683,7 +733,15 @@
             this.inventory = { DETONATE: 0, EXTRA_MOVES: 0, CLEAR: 0, SHUFFLE: 0 };
             this.bestScore = parseInt(localStorage.getItem(Config.bestScoreKey), 10) || 0;
             this.bestScoreAtStart = this.bestScore;
+            this.totalStars = parseInt(localStorage.getItem(Config.totalStarsKey), 10) || 0;
             this._bgmStartOffset = 0; // 每次開局隨機抽一首當起點,後續循環從這裡接著走
+
+            // 卡關提示 + 里程碑追蹤
+            this._hintTimer = null; this._currentHint = null;
+            this._lastMilestoneIdx = -1;
+            this.milestoneBanner = document.getElementById('milestoneBanner');
+            this.menuTotalStarsEl = document.getElementById('menu-total-stars');
+            this._syncMenuStars();
 
             this._setupLeaveGuard(); this._bindInputs(); this._bindGlobalClickSfx();
             this._syncSoundButton();
@@ -721,6 +779,114 @@
         }
         _bgmTrackForCurrentMode() {
             return this.currentMode === 'STAGE' ? this._bgmTrackForLevel(this.currentStageLevel) : this._bgmStartOffset;
+        }
+
+        // ============= 卡關提示 =============
+        _resetHintTimer() {
+            this._clearHintVisual();
+            if (this._hintTimer) clearTimeout(this._hintTimer);
+            this._hintTimer = null;
+            if (this.state !== GAME_STATE.PLAYING) return;
+            this._hintTimer = setTimeout(() => this._tryShowHint(), Config.hintIdleMs);
+        }
+        _killHint() {
+            this._clearHintVisual();
+            if (this._hintTimer) { clearTimeout(this._hintTimer); this._hintTimer = null; }
+        }
+        _clearHintVisual() {
+            if (!this._currentHint) return;
+            const [r1, c1, r2, c2] = this._currentHint;
+            const e1 = this.renderer.elAt(r1, c1), e2 = this.renderer.elAt(r2, c2);
+            if (e1) e1.classList.remove('hint');
+            if (e2) e2.classList.remove('hint');
+            this._currentHint = null;
+        }
+        _tryShowHint() {
+            if (this.state !== GAME_STATE.PLAYING) return;
+            if (this._isProcessing) {
+                this._hintTimer = setTimeout(() => this._tryShowHint(), 1500);
+                return;
+            }
+            const move = this._findPossibleMove();
+            if (move) {
+                const [r1, c1, r2, c2] = move;
+                this.renderer.elAt(r1, c1)?.classList.add('hint');
+                this.renderer.elAt(r2, c2)?.classList.add('hint');
+                this._currentHint = move;
+            } else {
+                // 整盤無解 → 自動洗牌
+                this.isProcessing = true;
+                this._executePropEffect('SHUFFLE');
+            }
+        }
+        _findPossibleMove() {
+            for (let r = 0; r < Config.height; r++) {
+                for (let c = 0; c < Config.width; c++) {
+                    // 嘗試與右鄰交換
+                    if (c + 1 < Config.width) {
+                        this.board.swap(r, c, r, c + 1);
+                        const hasMatch = this.matcher.find().matched.size > 0;
+                        this.board.swap(r, c, r, c + 1); // 立刻復原
+                        if (hasMatch) return [r, c, r, c + 1];
+                    }
+                    // 嘗試與下鄰交換
+                    if (r + 1 < Config.height) {
+                        this.board.swap(r, c, r + 1, c);
+                        const hasMatch = this.matcher.find().matched.size > 0;
+                        this.board.swap(r, c, r + 1, c);
+                        if (hasMatch) return [r, c, r + 1, c];
+                    }
+                }
+            }
+            return null;
+        }
+
+        // ============= Combo 等級 + 里程碑 =============
+        _comboLabel(n) { return COMBO_LABELS[Math.min(n, COMBO_LABELS.length - 1)] || 'LEGENDARY!'; }
+        _comboTier(n) { return Math.min(n, 6); }
+
+        _checkMilestone() {
+            if (this.currentMode !== 'ENDLESS' && this.currentMode !== 'TIME') return;
+            for (let i = 0; i < Config.endlessMilestones.length; i++) {
+                if (this.score >= Config.endlessMilestones[i] && i > this._lastMilestoneIdx) {
+                    this._lastMilestoneIdx = i;
+                    this._triggerMilestone(Config.endlessMilestones[i]);
+                    break;
+                }
+            }
+        }
+        _triggerMilestone(value) {
+            this.milestoneBanner.textContent = `🎉 ${value.toLocaleString()}!`;
+            this.milestoneBanner.classList.remove('show');
+            void this.milestoneBanner.offsetWidth;
+            this.milestoneBanner.classList.add('show');
+            this.audio.levelClear();
+            this._playFxFlash('rgba(255, 213, 79, 0.4)');
+        }
+
+        // ============= 星等 =============
+        _calcStars(movesLeft) {
+            if (movesLeft >= 18) return 3;  // 90%+ 剩餘
+            if (movesLeft >= 12) return 2;  // 60%+ 剩餘
+            return 1;                        // 過關保底 1 星
+        }
+        _commitStars(stars) {
+            this.totalStars += stars;
+            try { localStorage.setItem(Config.totalStarsKey, String(this.totalStars)); } catch (_) {}
+            this._syncMenuStars();
+        }
+        _syncMenuStars() {
+            if (this.menuTotalStarsEl) this.menuTotalStarsEl.textContent = this.totalStars;
+        }
+        _renderRewardStars(stars) {
+            const el = document.getElementById('reward-stars');
+            el.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                const s = document.createElement('span');
+                s.textContent = '⭐';
+                if (i >= stars) s.classList.add('empty');
+                el.appendChild(s);
+            }
         }
 
         _applyTheme(level) {
@@ -770,6 +936,8 @@
             if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
             this.audio.stopBGM();
             this._applyTheme(1);
+            this._killHint();
+            this._syncMenuStars();
         }
 
         openPauseMenu() {
@@ -779,6 +947,7 @@
             this.resumeBtn.style.display = 'block';
             if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
             this.audio.stopBGM();
+            this._killHint();
         }
 
         resumeGame() {
@@ -788,6 +957,7 @@
             this.state = GAME_STATE.PLAYING;
             if (this.currentMode === 'TIME') this._startTimeTimer();
             if (!this.audio.muted) this.audio.startBGM(this._bgmTrackForCurrentMode());
+            this._resetHintTimer();
         }
 
         _startTimeTimer() {
@@ -817,6 +987,7 @@
                 this._initLevel(true);
             }
             this.bestScoreAtStart = this.bestScore;
+            this._lastMilestoneIdx = -1;
             this._bgmStartOffset = Math.floor(Math.random() * BGM_TRACKS.length);
             this._applyTheme(mode === 'STAGE' ? this.currentStageLevel : 1);
             if (!this.audio.muted) this.audio.startBGM(this._bgmTrackForCurrentMode());
@@ -839,6 +1010,7 @@
                 this.limitLabel.textContent = 'MOVES'; this.limitVal.textContent = this.movesLeft; this.scoreEl.textContent = this.score;
             }
             this.renderer.render(); this._updateHUD(); if (resetBoard) this._initialResolve();
+            this._resetHintTimer();
         }
 
         // ======================= 交易與背包系統 =======================
@@ -938,6 +1110,11 @@
 
             titleEl.textContent = `LV ${cleared} Clear! 🎉`;
 
+            // 計算 + 累計星等
+            const stars = this._calcStars(this.movesLeft);
+            this._renderRewardStars(stars);
+            this._commitStars(stars);
+
             if (isBonus) {
                 const type = ItemKeys[Math.floor(Math.random() * ItemKeys.length)];
                 this.inventory[type]++; this._updateInventoryUI();
@@ -973,6 +1150,7 @@
             this.centerVal.textContent = this.targetScore;
             this._applyTheme(this.currentStageLevel);
             if (!this.audio.muted) this.audio.switchTrack(this._bgmTrackForLevel(this.currentStageLevel));
+            this._resetHintTimer();
         }
 
         _endGame(reason) {
@@ -981,6 +1159,7 @@
             this.audio.gameOver();
             this.audio.stopBGM();
             this.pauseBtn.style.display = 'none';
+            this._killHint();
 
             const titleEl = document.getElementById('result-title'), descEl = document.getElementById('result-desc');
             const isNewBest = (this.currentMode === 'ENDLESS' || this.currentMode === 'TIME') && this.score > 0 && this.score > this.bestScoreAtStart;
@@ -1014,6 +1193,7 @@
                 if (this.state !== GAME_STATE.PLAYING || this.isProcessing) return;
                 const target = e.target.closest('.candy'); if (!target || target.classList.contains('empty')) return;
                 e.preventDefault(); startX = e.clientX; startY = e.clientY; startTime = Date.now(); downIdx = parseInt(target.dataset.idx, 10);
+                this._resetHintTimer();
             });
             const handleUp = async e => {
                 if (downIdx === -1 || this.state !== GAME_STATE.PLAYING || this.isProcessing) { downIdx = -1; return; }
@@ -1054,7 +1234,7 @@
 
             const { matched } = this.matcher.find();
             if (matched.size > 0) { this._consumeMove(); this.combo = 0; await this._gameLoop(); }
-            else { this.board.swap(r1, c1, r2, c2); this.renderer.render(); await Utils.delay(Config.timing.swap); this.audio.fail(); this.isProcessing = false; }
+            else { this.board.swap(r1, c1, r2, c2); this.renderer.render(); await Utils.delay(Config.timing.swap); this.audio.fail(); this.isProcessing = false; this._resetHintTimer(); }
         }
 
         async _handleSpecialCombo(r1, c1, r2, c2, s1, s2) {
@@ -1170,7 +1350,12 @@
                 if (finalClear.length > 5 || this.combo > 1) {
                     if (this.fxEnabled) {
                         this.containerEl.classList.add('shake-screen'); setTimeout(() => this.containerEl.classList.remove('shake-screen'), 300);
-                        if (this.combo > 1) { this.comboBanner.textContent = `Combo ${this.combo}!`; this.comboBanner.classList.remove('show'); void this.comboBanner.offsetWidth; this.comboBanner.classList.add('show'); }
+                        if (this.combo > 1) {
+                            this.comboBanner.textContent = this._comboLabel(this.combo);
+                            this.comboBanner.className = `combo-banner tier-${this._comboTier(this.combo)}`;
+                            void this.comboBanner.offsetWidth;
+                            this.comboBanner.classList.add('show');
+                        }
                     }
                 }
                 this._updateHUD(); await Utils.delay(Config.timing.clear);
@@ -1206,7 +1391,7 @@
                 this.renderer.render(); await this._dropCandies();
             }
             if (!isInit) { this.combo = 0; this._checkWinLossCondition(); }
-            if (this.state === GAME_STATE.PLAYING) this.isProcessing = false;
+            if (this.state === GAME_STATE.PLAYING) { this.isProcessing = false; this._resetHintTimer(); }
         }
 
         _updateHUD() {
@@ -1220,6 +1405,7 @@
             if ((this.currentMode === 'ENDLESS' || this.currentMode === 'TIME') && this.score > this.bestScore) {
                 this.bestScore = this.score; this.centerVal.textContent = this.bestScore; try { localStorage.setItem(Config.bestScoreKey, String(this.bestScore)); } catch (_) {}
             }
+            this._checkMilestone();
         }
     }
 
