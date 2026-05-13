@@ -168,6 +168,7 @@
         body.disable-fx .candy.cross { animation: none !important; filter: none !important; }
         body.disable-fx .shake-screen { animation: none !important; transform: none !important; }
         body.disable-fx .candy.fresh, body.disable-fx .candy.clearing { animation: none !important; }
+        body.disable-fx .candy.hint { animation: none !important; box-shadow: inset -5px -5px 12px rgba(0,0,0,0.22), inset 5px 5px 12px rgba(255,255,255,0.75), 0 0 10px 3px rgba(255, 235, 59, 0.5) !important; }
 
         /* UI：背包與商店 */
         .inventory-container, .shop-container { display: none; width: 100%; max-width: 400px; background: rgba(255, 255, 255, 0.9); border-radius: 20px; padding: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); z-index: 10; margin-bottom: 12px; }
@@ -337,7 +338,7 @@
         width: 8, height: 8,
         colors: ['red', 'yellow', 'orange', 'purple', 'green', 'blue'],
         colorHex: { red: '#d50000', yellow: '#fbc02d', orange: '#f57c00', purple: '#aa00ff', green: '#00c853', blue: '#2962ff' },
-        timing: { swap: 180, clear: 220, drop: 240 },
+        timing: { swap: 180, clear: 120, drop: 280 },
         scoring: { base: 10, comboBonus: 0.25 },
         particles: { count: 14, spread: 11, gravity: 0.4, decay: 0.04 },
         swipeThreshold: 20,
@@ -384,7 +385,8 @@
         },
         inBounds: (r, c) => r >= 0 && r < Config.height && c >= 0 && c < Config.width,
         idx: (r, c) => r * Config.width + c,
-        rcOf: i => [Math.floor(i / Config.width), i % Config.width]
+        rcOf: i => [Math.floor(i / Config.width), i % Config.width],
+        reflow: el => { void el.offsetWidth; }
     };
 
     // ==========================================
@@ -588,14 +590,17 @@
         }
         _tick() {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            const { gravity, decay } = Config.particles;
-            for (let i = this.particles.length - 1; i >= 0; i--) {
-                const p = this.particles[i]; p.x += p.vx; p.y += p.vy; p.vy += gravity; p.life -= decay;
-                if (p.life <= 0) { this.particles.splice(i, 1); continue; }
-                this.ctx.globalAlpha = p.life; this.ctx.fillStyle = p.color;
-                this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); this.ctx.fill();
+            if (this.particles.length > 0) {
+                const { gravity, decay } = Config.particles;
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i]; p.x += p.vx; p.y += p.vy; p.vy += gravity; p.life -= decay;
+                    if (p.life <= 0) { this.particles.splice(i, 1); continue; }
+                    this.ctx.globalAlpha = p.life; this.ctx.fillStyle = p.color;
+                    this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); this.ctx.fill();
+                }
+                this.ctx.globalAlpha = 1;
             }
-            this.ctx.globalAlpha = 1; requestAnimationFrame(this._tick);
+            requestAnimationFrame(this._tick);
         }
     }
 
@@ -858,17 +863,18 @@
         _triggerMilestone(value) {
             this.milestoneBanner.textContent = `🎉 ${value.toLocaleString()}!`;
             this.milestoneBanner.classList.remove('show');
-            void this.milestoneBanner.offsetWidth;
+            Utils.reflow(this.milestoneBanner);
             this.milestoneBanner.classList.add('show');
             this.audio.levelClear();
             this._playFxFlash('rgba(255, 213, 79, 0.4)');
         }
 
         // ============= 星等 =============
-        _calcStars(movesLeft) {
-            if (movesLeft >= 18) return 3;  // 90%+ 剩餘
-            if (movesLeft >= 12) return 2;  // 60%+ 剩餘
-            return 1;                        // 過關保底 1 星
+        _calcStars(movesLeft, totalMoves) {
+            const pct = totalMoves > 0 ? movesLeft / totalMoves : 0;
+            if (pct >= 0.7) return 3;
+            if (pct >= 0.4) return 2;
+            return 1;
         }
         _commitStars(stars) {
             this.totalStars += stars;
@@ -888,6 +894,8 @@
                 el.appendChild(s);
             }
         }
+
+        _targetScoreForLevel(level) { return 500 + Math.max(0, level - 1) * 80; }
 
         _applyTheme(level) {
             const t = Themes[((level - 1) % Themes.length + Themes.length) % Themes.length];
@@ -976,7 +984,7 @@
             this.pauseBtn.style.display = 'inline-block';
 
             if (mode === 'STAGE') {
-                this.currentStageLevel = 1; this.movesLeft = 20; this.score = 0; this.targetScore = 500;
+                this.currentStageLevel = 1; this.movesLeft = 21; this.score = 0; this.targetScore = this._targetScoreForLevel(1);
                 this.inventory = { DETONATE: 0, EXTRA_MOVES: 0, CLEAR: 0, SHUFFLE: 0 }; this._updateInventoryUI();
                 this.tradeMovesPool = 0; // 開局餘額為0
 
@@ -993,7 +1001,21 @@
             if (!this.audio.muted) this.audio.startBGM(this._bgmTrackForCurrentMode());
         }
 
-        restartCurrentMode() { this.startMode(this.currentMode); }
+        restartCurrentMode() {
+            if (this.currentMode === 'STAGE') {
+                this.score = 0;
+                this.movesLeft = 21;
+                this.targetScore = this._targetScoreForLevel(this.currentStageLevel);
+                this.tradeMovesPool = 0;
+                this.inventory = { DETONATE: 0, EXTRA_MOVES: 0, CLEAR: 0, SHUFFLE: 0 };
+                this._updateInventoryUI();
+                this._applyTheme(this.currentStageLevel);
+                if (!this.audio.muted) this.audio.switchTrack(this._bgmTrackForLevel(this.currentStageLevel));
+                this._initLevel(true);
+            } else {
+                this.startMode(this.currentMode);
+            }
+        }
 
         _initLevel(resetBoard = false) {
             if (this.timerInterval) clearInterval(this.timerInterval);
@@ -1008,6 +1030,7 @@
             } else if (this.currentMode === 'STAGE') {
                 this.centerLabel.textContent = `LV ${this.currentStageLevel} GOAL`; this.centerVal.textContent = this.targetScore;
                 this.limitLabel.textContent = 'MOVES'; this.limitVal.textContent = this.movesLeft; this.scoreEl.textContent = this.score;
+                this._initialMoves = this.movesLeft;
             }
             this.renderer.render(); this._updateHUD(); if (resetBoard) this._initialResolve();
             this._resetHintTimer();
@@ -1052,40 +1075,77 @@
         }
 
         async _executePropEffect(type) {
-            if (type === 'EXTRA_MOVES') {
-                const added = Math.floor(Math.random() * 5) + 1; this.movesLeft += added; this.limitVal.textContent = this.movesLeft;
-                this._playFxFloatingText(`+${added} MOVES`, this.limitVal);
-                this.audio.special();
-                this.limitVal.style.color = '#00e676'; setTimeout(() => this.limitVal.style.color = '', 500);
-            } else if (type === 'SHUFFLE') {
-                this.audio.special();
-                if (this.fxEnabled) { this.gridEl.classList.add('fx-shuffle-out'); await Utils.delay(250); }
-                const arr = this.board.data.filter(c => !c.empty); arr.sort(() => Math.random() - 0.5);
-                let idx = 0; for (let i = 0; i < this.board.data.length; i++) { if (!this.board.data[i].empty) { this.board.data[i] = arr[idx++]; this.board.data[i].fresh = true; } }
-                this.renderer.render();
-                if (this.fxEnabled) { this.gridEl.classList.remove('fx-shuffle-out'); this.gridEl.classList.add('fx-shuffle-in'); await Utils.delay(250); this.gridEl.classList.remove('fx-shuffle-in'); }
-                await Utils.delay(Config.timing.drop); await this._gameLoop();
-            } else if (type === 'CLEAR' || type === 'RANDOM_CLEAR') {
-                this._playFxFlash('rgba(255, 235, 59, 0.5)');
-                this.audio.special();
-                const indices = new Set(); for (let i = 0; i < 5; i++) indices.add(Math.floor(Math.random() * 64));
-                await this._clearByIndices(indices); await this._dropCandies(); await this._gameLoop();
-            } else if (type === 'DETONATE') {
-                this._playFxFlash('rgba(244, 67, 54, 0.5)');
-                this.audio.explode();
-                const specials = new Set(); for (let i = 0; i < this.board.data.length; i++) { if (this.board.data[i].special !== SPECIAL.NONE) specials.add(i); }
-                await this._clearByIndices(specials.size > 0 ? specials : new Set([Math.floor(Math.random() * 64)])); await this._dropCandies(); await this._gameLoop();
-            } else if (type === 'SPAWN_BOMB' || type === 'SPAWN_CROSS') {
-                let idx = Math.floor(Math.random() * 64); let color = Utils.randomColor();
-                this.board.data[idx] = { color: color, special: type === 'SPAWN_BOMB' ? SPECIAL.BOMB : SPECIAL.CROSS, empty: false, fresh: true };
-                this.renderer.render();
-                this.audio.special();
-                if (this.fxEnabled) {
-                    const elRect = this.renderer.elAt(...Utils.rcOf(idx)).getBoundingClientRect(), conRect = this.containerEl.getBoundingClientRect();
-                    for(let i=0; i<8; i++) this.particles.emit(elRect.left - conRect.left + 22, elRect.top - conRect.top + 22, color);
-                }
-            }
+            const handler = this._propEffects[type];
+            if (handler) await handler.call(this);
             this._checkWinLossCondition(); if (this.state === GAME_STATE.PLAYING) this.isProcessing = false;
+        }
+
+        get _propEffects() {
+            return {
+                EXTRA_MOVES: async function() {
+                    const added = Math.floor(Math.random() * 5) + 1; this.movesLeft += added; this.limitVal.textContent = this.movesLeft;
+                    this._playFxFloatingText(`+${added} MOVES`, this.limitVal);
+                    this.audio.special();
+                    this.limitVal.style.color = '#00e676'; setTimeout(() => this.limitVal.style.color = '', 500);
+                },
+                SHUFFLE: async function() {
+                    this.audio.special();
+                    if (this.fxEnabled) { this.gridEl.classList.add('fx-shuffle-out'); await Utils.delay(250); }
+                    const arr = this.board.data.filter(c => !c.empty); arr.sort(() => Math.random() - 0.5);
+                    let idx = 0; for (let i = 0; i < this.board.data.length; i++) { if (!this.board.data[i].empty) { this.board.data[i] = arr[idx++]; this.board.data[i].fresh = true; } }
+                    this.renderer.render();
+                    if (this.fxEnabled) { this.gridEl.classList.remove('fx-shuffle-out'); this.gridEl.classList.add('fx-shuffle-in'); await Utils.delay(250); this.gridEl.classList.remove('fx-shuffle-in'); }
+                    await Utils.delay(Config.timing.drop); await this._gameLoop();
+                },
+                CLEAR: async function() {
+                    this._playFxFlash('rgba(255, 235, 59, 0.5)');
+                    this.audio.special();
+                    const indices = new Set(); for (let i = 0; i < 5; i++) indices.add(Math.floor(Math.random() * 64));
+                    await this._clearByIndices(indices); await this._dropCandies(); await this._gameLoop();
+                },
+                RANDOM_CLEAR: async function() {
+                    this._playFxFlash('rgba(255, 235, 59, 0.5)');
+                    this.audio.special();
+                    const indices = new Set(); for (let i = 0; i < 5; i++) indices.add(Math.floor(Math.random() * 64));
+                    await this._clearByIndices(indices); await this._dropCandies(); await this._gameLoop();
+                },
+                DETONATE: async function() {
+                    this._playFxFlash('rgba(244, 67, 54, 0.5)');
+                    this.audio.explode();
+                    const specials = new Set(); for (let i = 0; i < this.board.data.length; i++) { if (this.board.data[i].special !== SPECIAL.NONE) specials.add(i); }
+                    await this._clearByIndices(specials.size > 0 ? specials : new Set([Math.floor(Math.random() * 64)])); await this._dropCandies(); await this._gameLoop();
+                },
+                SPAWN_BOMB: async function() {
+                    const candidates = [];
+                    for (let i = 0; i < this.board.data.length; i++) {
+                        if (!this.board.data[i].empty && this.board.data[i].special === SPECIAL.NONE) candidates.push(i);
+                    }
+                    const idx = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : Math.floor(Math.random() * 64);
+                    let color = Utils.randomColor();
+                    this.board.data[idx] = { color, special: SPECIAL.BOMB, empty: false, fresh: true };
+                    this.renderer.render();
+                    this.audio.special();
+                    if (this.fxEnabled) {
+                        const elRect = this.renderer.elAt(...Utils.rcOf(idx)).getBoundingClientRect(), conRect = this.containerEl.getBoundingClientRect();
+                        for(let i=0; i<8; i++) this.particles.emit(elRect.left - conRect.left + 22, elRect.top - conRect.top + 22, color);
+                    }
+                },
+                SPAWN_CROSS: async function() {
+                    const candidates = [];
+                    for (let i = 0; i < this.board.data.length; i++) {
+                        if (!this.board.data[i].empty && this.board.data[i].special === SPECIAL.NONE) candidates.push(i);
+                    }
+                    const idx = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : Math.floor(Math.random() * 64);
+                    let color = Utils.randomColor();
+                    this.board.data[idx] = { color, special: SPECIAL.CROSS, empty: false, fresh: true };
+                    this.renderer.render();
+                    this.audio.special();
+                    if (this.fxEnabled) {
+                        const elRect = this.renderer.elAt(...Utils.rcOf(idx)).getBoundingClientRect(), conRect = this.containerEl.getBoundingClientRect();
+                        for(let i=0; i<8; i++) this.particles.emit(elRect.left - conRect.left + 22, elRect.top - conRect.top + 22, color);
+                    }
+                }
+            };
         }
 
         // ======================= 過關邏輯 =======================
@@ -1111,7 +1171,7 @@
             titleEl.textContent = `LV ${cleared} Clear! 🎉`;
 
             // 計算 + 累計星等
-            const stars = this._calcStars(this.movesLeft);
+            const stars = this._calcStars(this.movesLeft, this._initialMoves || 21);
             this._renderRewardStars(stars);
             this._commitStars(stars);
 
@@ -1121,7 +1181,7 @@
                 document.getElementById('reward-bonus-name').textContent = ItemInfo[type].name;
                 document.getElementById('reward-bonus-desc').textContent = ItemInfo[type].desc;
                 bonusEl.style.display = 'block';
-                bonusEl.style.animation = 'none'; void bonusEl.offsetWidth; bonusEl.style.animation = '';
+                bonusEl.style.animation = 'none'; Utils.reflow(bonusEl); bonusEl.style.animation = '';
                 setTimeout(() => this.audio.special(), 350);
             } else {
                 bonusEl.style.display = 'none';
@@ -1140,9 +1200,9 @@
 
             // 準備下一關
             this.currentStageLevel++;
-            this.targetScore = 500 + (this.currentStageLevel - 1) * 100;
+            this.targetScore = this._targetScoreForLevel(this.currentStageLevel);
             this.score = 0;
-            this.movesLeft = 20 + 1; // 給予新關卡 20步 + 1步過關獎勵
+            this.movesLeft = 21; // 給予新關卡 21步
 
             this.state = GAME_STATE.PLAYING; this.isProcessing = false;
             this._updateHUD();
@@ -1183,12 +1243,6 @@
 
         _bindInputs() {
             let startX = 0, startY = 0, downIdx = -1, startTime = 0, lastTapIdx = -1, lastTapTime = 0;
-            this.gridEl.addEventListener('dblclick', async e => {
-                if (this.state !== GAME_STATE.PLAYING || this.isProcessing) return;
-                const target = e.target.closest('.candy'); if (!target || target.classList.contains('empty')) return;
-                const idx = parseInt(target.dataset.idx, 10); const [r, c] = Utils.rcOf(idx); const cell = this.board.get(r, c);
-                if (cell && cell.special !== SPECIAL.NONE) await this._triggerBombAt(r, c);
-            });
             this.gridEl.addEventListener('pointerdown', e => {
                 if (this.state !== GAME_STATE.PLAYING || this.isProcessing) return;
                 const target = e.target.closest('.candy'); if (!target || target.classList.contains('empty')) return;
@@ -1238,71 +1292,100 @@
         }
 
         async _handleSpecialCombo(r1, c1, r2, c2, s1, s2) {
-            const sp1 = s1.special, sp2 = s2.special, isCross = s => s === SPECIAL.CROSS, isBomb = s => s === SPECIAL.BOMB, isStripe = s => s === SPECIAL.ROW || s === SPECIAL.COL;
-            if (isCross(sp1) && isCross(sp2)) { this.combo = 1; this.audio.explode(); const all = new Set(); for (let i = 0; i < this.board.data.length; i++) all.add(i); await this._clearByIndices(all); return true; }
-            if (isCross(sp1) || isCross(sp2)) {
-                this.combo = 1; this.audio.special();
-                // 解構：把 cross 與「另一顆」分開,後續邏輯就不用反覆判斷 sp1/sp2 哪個是 cross
-                const crossR = isCross(sp1) ? r2 : r1;
-                const crossC = isCross(sp1) ? c2 : c1;
-                const partnerR = isCross(sp1) ? r1 : r2;
-                const partnerC = isCross(sp1) ? c1 : c2;
-                const partner = isCross(sp1) ? s2 : s1;
-                const targetColor = partner.color;
-                const partnerSpecial = partner.special;
-
-                if (partnerSpecial !== SPECIAL.NONE) {
-                    // 設置型 combo: cross + 特殊糖
-                    //   把同色糖「變身」成 partner 的特殊類型(條紋方向隨機)
-                    //   只消耗 cross 與 partner 兩顆,被感染的特殊糖留在盤面讓玩家後續引爆
-                    const crossIdx = Utils.idx(crossR, crossC);
-                    const partnerIdx = Utils.idx(partnerR, partnerC);
-
-                    for (let i = 0; i < this.board.data.length; i++) {
-                        const cell = this.board.data[i];
-                        if (cell.empty || cell.color !== targetColor) continue;
-                        if (i === crossIdx || i === partnerIdx) continue; // cross/partner 自己跳過
-                        let infect = partnerSpecial;
-                        if (infect === SPECIAL.ROW || infect === SPECIAL.COL) {
-                            infect = Math.random() > 0.5 ? SPECIAL.ROW : SPECIAL.COL;
-                        }
-                        cell.special = infect;
-                    }
-
-                    // 中和 cross/partner 自己的特殊性,避免清除時觸發各自的連鎖效果
-                    this.board.data[crossIdx].special = SPECIAL.NONE;
-                    this.board.data[partnerIdx].special = SPECIAL.NONE;
-                    this.renderer.render();
-
-                    await this._clearByIndices(new Set([crossIdx, partnerIdx]));
-                } else {
-                    // cross + 一般糖: 標準彩虹效果,清除所有同色糖
-                    const indices = new Set();
-                    indices.add(Utils.idx(crossR, crossC));
-                    for (let i = 0; i < this.board.data.length; i++) {
-                        if (this.board.data[i].empty || this.board.data[i].color !== targetColor) continue;
-                        indices.add(i);
-                    }
-                    await this._clearByIndices(indices);
-                }
-                return true;
-            }
-            if (isBomb(sp1) && isBomb(sp2)) {
-                this.combo = 1; this.audio.explode(); const indices = new Set();
-                for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) if (Utils.inBounds(r2 + dr, c2 + dc)) indices.add(Utils.idx(r2 + dr, c2 + dc));
-                await this._clearByIndices(indices); return true;
-            }
-            if ((isBomb(sp1) && isStripe(sp2)) || (isStripe(sp1) && isBomb(sp2))) {
-                this.combo = 1; this.audio.explode(); const indices = new Set();
-                for (let i = -1; i <= 1; i++) { for (let c = 0; c < Config.width; c++) if (Utils.inBounds(r2 + i, c)) indices.add(Utils.idx(r2 + i, c)); for (let r = 0; r < Config.height; r++) if (Utils.inBounds(r, c2 + i)) indices.add(Utils.idx(r, c2 + i)); }
-                await this._clearByIndices(indices); return true;
-            }
-            if (isStripe(sp1) && isStripe(sp2)) {
-                this.combo = 1; this.audio.explode(); const indices = new Set();
-                for (let c = 0; c < Config.width; c++) indices.add(Utils.idx(r2, c)); for (let r = 0; r < Config.height; r++) indices.add(Utils.idx(r, c2));
-                await this._clearByIndices(indices); return true;
-            }
+            const sp1 = s1.special, sp2 = s2.special;
+            const isCross = s => s === SPECIAL.CROSS, isBomb = s => s === SPECIAL.BOMB, isStripe = s => s === SPECIAL.ROW || s === SPECIAL.COL;
+            if (isCross(sp1) && isCross(sp2)) return this._comboCrossCross();
+            if (isCross(sp1) || isCross(sp2)) return this._comboCrossWithX(r1, c1, r2, c2, s1, s2, isCross);
+            if (isBomb(sp1) && isBomb(sp2)) return this._comboBombBomb(r2, c2);
+            if ((isBomb(sp1) && isStripe(sp2)) || (isStripe(sp1) && isBomb(sp2))) return this._comboBombStripe(r2, c2);
+            if (isStripe(sp1) && isStripe(sp2)) return this._comboStripeStripe(r2, c2);
             return false;
+        }
+
+        async _comboCrossCross() {
+            this.combo = 1; this.audio.explode();
+            const all = new Set();
+            for (let i = 0; i < this.board.data.length; i++) all.add(i);
+            await this._clearByIndices(all);
+            return true;
+        }
+
+        async _comboCrossWithX(r1, c1, r2, c2, s1, s2, isCross) {
+            this.combo = 1; this.audio.special();
+            const crossR = isCross(s1) ? r1 : r2;
+            const crossC = isCross(s1) ? c1 : c2;
+            const partnerR = isCross(s1) ? r2 : r1;
+            const partnerC = isCross(s1) ? c2 : c1;
+            const partner = isCross(s1) ? s2 : s1;
+            if (partner.special !== SPECIAL.NONE) {
+                return this._comboCrossSpecial(crossR, crossC, partnerR, partnerC, partner);
+            }
+            return this._comboCrossNormal(crossR, crossC, partner.color);
+        }
+
+        async _comboCrossSpecial(crossR, crossC, partnerR, partnerC, partner) {
+            const crossIdx = Utils.idx(crossR, crossC);
+            const partnerIdx = Utils.idx(partnerR, partnerC);
+            const targetColor = partner.color;
+            let partnerSpecial = partner.special;
+            for (let i = 0; i < this.board.data.length; i++) {
+                const cell = this.board.data[i];
+                if (cell.empty || cell.color !== targetColor) continue;
+                if (i === crossIdx || i === partnerIdx) continue;
+                let infect = partnerSpecial;
+                if (infect === SPECIAL.ROW || infect === SPECIAL.COL) {
+                    infect = Math.random() > 0.5 ? SPECIAL.ROW : SPECIAL.COL;
+                }
+                cell.special = infect;
+            }
+            this.board.data[crossIdx].special = SPECIAL.NONE;
+            this.board.data[partnerIdx].special = SPECIAL.NONE;
+            this.renderer.render();
+            await this._clearByIndices(new Set([crossIdx, partnerIdx]));
+            return true;
+        }
+
+        async _comboCrossNormal(crossR, crossC, targetColor) {
+            const indices = new Set();
+            indices.add(Utils.idx(crossR, crossC));
+            for (let i = 0; i < this.board.data.length; i++) {
+                if (this.board.data[i].empty || this.board.data[i].color !== targetColor) continue;
+                indices.add(i);
+            }
+            await this._clearByIndices(indices);
+            return true;
+        }
+
+        async _comboBombBomb(r2, c2) {
+            this.combo = 1; this.audio.explode();
+            const indices = new Set();
+            for (let dr = -2; dr <= 2; dr++) {
+                for (let dc = -2; dc <= 2; dc++) {
+                    if (Utils.inBounds(r2 + dr, c2 + dc)) indices.add(Utils.idx(r2 + dr, c2 + dc));
+                }
+            }
+            await this._clearByIndices(indices);
+            return true;
+        }
+
+        async _comboBombStripe(r2, c2) {
+            this.combo = 1; this.audio.explode();
+            const indices = new Set();
+            for (let i = -1; i <= 1; i++) {
+                for (let c = 0; c < Config.width; c++) if (Utils.inBounds(r2 + i, c)) indices.add(Utils.idx(r2 + i, c));
+                for (let r = 0; r < Config.height; r++) if (Utils.inBounds(r, c2 + i)) indices.add(Utils.idx(r, c2 + i));
+            }
+            await this._clearByIndices(indices);
+            return true;
+        }
+
+        async _comboStripeStripe(r2, c2) {
+            this.combo = 1; this.audio.explode();
+            const indices = new Set();
+            for (let c = 0; c < Config.width; c++) indices.add(Utils.idx(r2, c));
+            for (let r = 0; r < Config.height; r++) indices.add(Utils.idx(r, c2));
+            await this._clearByIndices(indices);
+            return true;
         }
 
         async _detonateAt(r, c) { this.audio.explode(); await this._clearByIndices(new Set([Utils.idx(r, c)])); }
@@ -1321,7 +1404,11 @@
                 [SPECIAL.BOMB]: (r, c) => { for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) enqueue(r + dr, c + dc); },
                 [SPECIAL.CROSS]: () => {
                     const pool = this.board.data.filter(c => !c.empty && c.special !== SPECIAL.CROSS);
-                    if (pool.length === 0) return; const target = pool[Math.floor(Math.random() * pool.length)].color;
+                    if (pool.length === 0) {
+                        for (let i = 0; i < this.board.data.length; i++) if (this.board.data[i].special === SPECIAL.CROSS) enqueue(...Utils.rcOf(i));
+                        return;
+                    }
+                    const target = pool[Math.floor(Math.random() * pool.length)].color;
                     for (let i = 0; i < this.board.data.length; i++) if (this.board.data[i].color === target) enqueue(...Utils.rcOf(i));
                 }
             };
@@ -1353,7 +1440,7 @@
                         if (this.combo > 1) {
                             this.comboBanner.textContent = this._comboLabel(this.combo);
                             this.comboBanner.className = `combo-banner tier-${this._comboTier(this.combo)}`;
-                            void this.comboBanner.offsetWidth;
+                            Utils.reflow(this.comboBanner);
                             this.comboBanner.classList.add('show');
                         }
                     }
@@ -1401,7 +1488,7 @@
             this.tradePoolEl.title = `上限 ${Config.maxTradePool} 步`;
             this._updateTradeUI();
 
-            if(this.fxEnabled) { this.scoreEl.classList.remove('bump'); void this.scoreEl.offsetWidth; this.scoreEl.classList.add('bump'); }
+            if(this.fxEnabled) { this.scoreEl.classList.remove('bump'); Utils.reflow(this.scoreEl); this.scoreEl.classList.add('bump'); }
             if ((this.currentMode === 'ENDLESS' || this.currentMode === 'TIME') && this.score > this.bestScore) {
                 this.bestScore = this.score; this.centerVal.textContent = this.bestScore; try { localStorage.setItem(Config.bestScoreKey, String(this.bestScore)); } catch (_) {}
             }
