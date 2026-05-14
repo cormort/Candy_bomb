@@ -1329,10 +1329,10 @@ if (isCross(sp1) || isCross(sp2)) return this._comboCrossWithX(r1, c1, r2, c2, s
          async _comboCrossWithX(r1, c1, r2, c2, s1, s2, isCross) {
              this.combo = 1; this.audio.special();
              const s1IsCross = isCross(s1.special);
-             const crossR = s1IsCross ? r1 : r2;
-             const crossC = s1IsCross ? c1 : c2;
-             const partnerR = s1IsCross ? r2 : r1;
-             const partnerC = s1IsCross ? c2 : c1;
+             const crossR = s1IsCross ? r2 : r1;
+             const crossC = s1IsCross ? c2 : c1;
+             const partnerR = s1IsCross ? r1 : r2;
+             const partnerC = s1IsCross ? c1 : c2;
              const partner = s1IsCross ? s2 : s1;
               if (partner.special !== SPECIAL.NONE) {
                  return this._comboCrossSpecial(crossR, crossC, partnerR, partnerC, partner);
