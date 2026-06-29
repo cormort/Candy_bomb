@@ -1,1631 +1,1411 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍬 Sweet Candy Match: Ultimate FX 🍭</title>
-    <style>
-        /* === 核心變數 === */
-        :root {
-            --board-size: 8;
-            --cell-size: 45px;
-            --gap: 2px;
-            --board-padding: 8px;
-            --bg-blur: 70px;
-            --anim-fast: 120ms;
-            --anim-mid: 180ms;
-            --anim-slow: 280ms;
-            --bg-grad: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 45%, #c8a2c8 100%);
-            --blob1: rgba(255, 138, 128, 0.65);
-            --blob2: rgba(170, 0, 255, 0.45);
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍬 Candy Blast 🍭</title>
+<style>
+:root {
+  --board-size: 8;
+  --cell-size: 46px;
+  --gap: 6px;
+  --board-padding: 12px;
+  --bg-blur: 60px;
+  --anim-fast: 120ms;
+  --anim-mid: 180ms;
+  --anim-slow: 300ms;
+  --bg-grad: radial-gradient(120% 120% at 50% 0%, #3a1d5c 0%, #241040 55%, #160a2b 100%);
+  --blob1: rgba(255, 92, 138, 0.40);
+  --blob2: rgba(94, 234, 212, 0.26);
+  --accent: #ff5c8a;
+  --accent-2: #ff8fb3;
+  --gold: #ffd36b;
+  --surface: rgba(255,255,255,0.055);
+  --surface-strong: rgba(255,255,255,0.10);
+  --border: rgba(255,255,255,0.13);
+  --text: #fff;
+  --muted: rgba(255,255,255,0.58);
+  --radius-gem: 30%;
+}
+@font-face { font-family: 'Fredoka'; font-style: normal; font-weight: 400 700; font-display: swap; src: local('Fredoka'), local('Fredoka-Regular'), local('Fredoka-Bold'); }
+@media (max-width: 460px) {
+  :root {
+    --cell-size: calc((100vw - 36px - var(--board-padding) * 2 - var(--gap) * (var(--board-size) - 1)) / var(--board-size));
+    --bg-blur: 28px;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  display: flex; flex-direction: column; align-items: center;
+  background: var(--bg-grad); background-attachment: fixed;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--text);
+  margin: 0; padding: 18px 12px 28px; min-height: 100vh;
+  touch-action: none; user-select: none; -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden; position: relative;
+  transition: background 0.8s ease;
+}
+body::before, body::after {
+  content: ''; position: fixed; border-radius: 50%; filter: blur(var(--bg-blur));
+  z-index: 0; pointer-events: none; animation: float 11s ease-in-out infinite;
+  transition: background 0.8s ease;
+}
+body::before { width: 380px; height: 380px; background: radial-gradient(circle, var(--blob1), transparent 70%); top: -120px; left: -120px; }
+body::after { width: 340px; height: 340px; background: radial-gradient(circle, var(--blob2), transparent 70%); bottom: -110px; right: -120px; animation-delay: -3s; }
+@keyframes float { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(34px,-26px) scale(1.08); } }
 
-        @media (max-width: 420px) {
-            :root {
-                --cell-size: calc((100vw - 40px - var(--board-padding) * 2 - var(--gap) * (var(--board-size) - 1)) / var(--board-size));
-                --bg-blur: 24px;
-            }
-        }
+.app-shell { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; z-index: 5; position: relative; }
 
-        * { box-sizing: border-box; }
+.top-bar { display: flex; gap: 8px; justify-content: flex-end; align-items: center; width: 100%; margin-bottom: 10px; z-index: 10; position: relative; }
+.brand-mini { margin-right: auto; display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 17px; letter-spacing: 0.2px; }
+.brand-mini .dot { font-size: 19px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)); }
+.toggle-btn {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 8px 12px; font-family: inherit; font-size: 13px; font-weight: 600; color: #fff; cursor: pointer;
+  backdrop-filter: blur(8px); transition: transform .12s ease, background .2s; white-space: nowrap;
+}
+.toggle-btn:active { transform: scale(0.92); }
+.toggle-btn.off { opacity: 0.5; }
+.toggle-btn.pause-btn { background: linear-gradient(135deg, var(--accent-2), var(--accent)); border-color: transparent; box-shadow: 0 6px 16px rgba(255,92,138,.35); }
 
-        body {
-            display: flex; flex-direction: column; align-items: center;
-            background: var(--bg-grad);
-            background-attachment: fixed; font-family: system-ui, -apple-system, sans-serif;
-            margin: 0; padding: 20px 10px; min-height: 100vh;
-            touch-action: none; user-select: none; -webkit-tap-highlight-color: transparent;
-            overflow-x: hidden; position: relative;
-            transition: background 0.8s ease;
-        }
+.hud { display: flex; justify-content: space-between; gap: 10px; width: 100%; margin-bottom: 16px; z-index: 10; }
+.hud-box {
+  flex: 1; background: var(--surface); border: 1px solid var(--border); padding: 10px 12px; border-radius: 18px;
+  text-align: center; display: flex; flex-direction: column; gap: 2px; justify-content: center; min-width: 0;
+  backdrop-filter: blur(8px); box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
+.hud-box label { font-size: 10px; color: var(--muted); letter-spacing: 1.4px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.hud-box span { font-size: 26px; font-weight: 700; line-height: 1.05; transition: transform var(--anim-fast); display: inline-block; }
+.hud-box span.bump { transform: scale(1.28); }
+.hud-box.score-box span { color: var(--gold); }
 
-        /* 漂浮背景特效 */
-        body::before, body::after {
-            content: ''; position: fixed; border-radius: 50%; filter: blur(var(--bg-blur));
-            z-index: 0; pointer-events: none; animation: float 9s ease-in-out infinite;
-            transition: background 0.8s ease;
-        }
-        body::before { width: 360px; height: 360px; background: radial-gradient(circle, var(--blob1), transparent 70%); top: -100px; left: -100px; }
-        body::after { width: 320px; height: 320px; background: radial-gradient(circle, var(--blob2), transparent 70%); bottom: -100px; right: -100px; animation-delay: -2s; }
-        @keyframes float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30px, -20px); } }
+.game-container { position: relative; z-index: 5; margin-bottom: 16px; }
+.game-container.processing { cursor: wait; }
+.game-container.processing .grid { filter: brightness(0.96) saturate(0.94); }
+.grid {
+  display: grid; grid-template-columns: repeat(var(--board-size), var(--cell-size)); grid-template-rows: repeat(var(--board-size), var(--cell-size));
+  gap: var(--gap); background: rgba(0,0,0,0.26); padding: var(--board-padding); border-radius: 26px;
+  border: 1px solid var(--border);
+  box-shadow: 0 30px 70px rgba(0,0,0,0.45), inset 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+  transition: filter 0.18s ease;
+}
+.cell-bg { border-radius: 26%; background: rgba(255,255,255,0.035); box-shadow: inset 0 2px 5px rgba(0,0,0,0.25); }
 
-        /* 頂部工具列 */
-        .top-bar { display: flex; gap: 8px; justify-content: flex-end; align-items: center; width: 100%; max-width: 400px; margin-bottom: 8px; z-index: 10; position: relative; }
-        .toggle-btn {
-            background: rgba(255, 255, 255, 0.4); border: 2px solid white; border-radius: 20px;
-            padding: 6px 12px; font-size: 13px; font-weight: bold; color: #d81b60; cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15); backdrop-filter: blur(5px); transition: 0.2s;
-            white-space: nowrap;
-        }
-        .toggle-btn:active { transform: scale(0.9); }
-        .toggle-btn.off { background: rgba(0, 0, 0, 0.4); color: #fff; border-color: rgba(255,255,255,0.5); }
-        .toggle-btn.pause-btn { margin-right: auto; background: linear-gradient(135deg, #ff6491, #d81b60); color: white; border-color: white; }
+.candy {
+  width: 100%; height: 100%; border-radius: var(--radius-gem); display: flex; align-items: center; justify-content: center;
+  font-size: 23px; cursor: pointer; position: relative;
+  box-shadow: inset 0 -5px 9px rgba(0,0,0,0.30), inset 0 4px 7px rgba(255,255,255,0.45), 0 4px 9px rgba(0,0,0,0.32);
+  will-change: transform, opacity; transition: transform var(--anim-mid) cubic-bezier(0.2,0.8,0.2,1), opacity var(--anim-fast) ease;
+}
+.candy::before {
+  content: ''; position: absolute; top: 13%; left: 17%; width: 44%; height: 36%; border-radius: 50%;
+  background: linear-gradient(160deg, rgba(255,255,255,0.92), rgba(255,255,255,0) 75%); pointer-events: none;
+}
+@media (hover: hover) { .candy:hover { transform: scale(1.07); filter: brightness(1.06); } }
 
-        /* HUD */
-        .hud { display: flex; justify-content: space-between; gap: 8px; width: 100%; max-width: 400px; margin-bottom: 15px; color: white; z-index: 10; }
-        .hud-box {
-            flex: 1; background: linear-gradient(135deg, #ff6491, #d81b60); padding: 8px 12px; border-radius: 20px; text-align: center;
-            border: 2px solid rgba(255, 255, 255, 0.7); box-shadow: 0 8px 20px rgba(216, 27, 96, 0.3); display: flex; flex-direction: column; justify-content: center; min-width: 0;
-        }
-        .hud-box label { font-size: clamp(9px, 2.6vw, 11px); opacity: 0.9; display: block; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .hud-box span { font-size: 20px; font-weight: bold; transition: transform var(--anim-fast); display: inline-block; }
-        .hud-box span.bump { transform: scale(1.3); }
+.candy.red    { background: radial-gradient(circle at 32% 26%, #ff97a4, #ff5d6c 42%, #c8203f); }
+.candy.yellow { background: radial-gradient(circle at 32% 26%, #fff0a8, #ffce4d 45%, #e69a12); }
+.candy.orange { background: radial-gradient(circle at 32% 26%, #ffc28a, #ff8f3c 45%, #e2640f); }
+.candy.purple { background: radial-gradient(circle at 32% 26%, #e0b3ff, #b06bff 45%, #7c2ff0); }
+.candy.green  { background: radial-gradient(circle at 32% 26%, #b4f7d4, #4fdd97 45%, #11a566); }
+.candy.blue   { background: radial-gradient(circle at 32% 26%, #b3ccff, #5e95ff 45%, #2456e6); }
+.candy.empty  { opacity: 0; pointer-events: none; transform: scale(0.4); }
+.candy.empty::before { display: none; }
 
-        /* 遊戲盤面 */
-        .game-container { position: relative; z-index: 5; margin-bottom: 15px; }
-        .game-container.processing { cursor: wait; }
-        .game-container.processing .grid { filter: brightness(0.95) saturate(0.92); }
-        .grid {
-            display: grid; grid-template-columns: repeat(var(--board-size), var(--cell-size)); grid-template-rows: repeat(var(--board-size), var(--cell-size));
-            gap: var(--gap); background: rgba(255, 255, 255, 0.22); padding: var(--board-padding); border-radius: 24px;
-            border: 2px solid rgba(255, 255, 255, 0.55); box-shadow: 0 24px 60px rgba(216, 27, 96, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.6); backdrop-filter: blur(var(--bg-blur));
-            transition: filter 0.18s ease;
-        }
+.candy.selected { transform: scale(1.16); z-index: 2; animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { box-shadow: 0 0 14px 3px rgba(255,255,255,0.75); } 50% { box-shadow: 0 0 30px 11px rgba(255,255,255,1); } }
+.candy.row::after, .candy.col::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius-gem); pointer-events: none; }
+.candy.row::after { background: repeating-linear-gradient(0deg, transparent, transparent 7px, rgba(255,255,255,0.7) 7px, rgba(255,255,255,0.7) 14px); }
+.candy.col::after { background: repeating-linear-gradient(90deg, transparent, transparent 7px, rgba(255,255,255,0.7) 7px, rgba(255,255,255,0.7) 14px); }
+.candy.bomb { border-radius: 24%; border: 2px dashed rgba(255,255,255,0.85); animation: bombGlow 1.4s ease-in-out infinite; }
+@keyframes bombGlow { 0%,100% { box-shadow: 0 0 14px rgba(255,255,255,0.8); } 50% { box-shadow: 0 0 28px rgba(255,211,107,1); } }
+.candy.rainbow, .candy.cross { background: conic-gradient(#ff5d6c, #ffce4d, #4fdd97, #5e95ff, #b06bff, #ff5d6c) !important; border: 2px solid #fff; animation: rainbowSpin 2.4s linear infinite; }
+@keyframes rainbowSpin { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
 
-        .candy {
-            width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; position: relative;
-            box-shadow: inset -5px -5px 12px rgba(0, 0, 0, 0.22), inset 5px 5px 12px rgba(255, 255, 255, 0.75), 0 4px 8px rgba(0, 0, 0, 0.18);
-            will-change: transform, opacity; transition: transform var(--anim-mid) cubic-bezier(0.2, 0.8, 0.2, 1), opacity var(--anim-fast) ease;
-        }
-        @media (hover: hover) { .candy:hover { transform: scale(1.08); filter: brightness(1.05); } }
+#particles { position: absolute; inset: 0; pointer-events: none; z-index: 20; }
 
-        /* 糖果顏色與圖示 */
-        .candy.red { background: radial-gradient(circle at 30% 30%, #ff8a80, #d50000); }
-        .candy.yellow { background: radial-gradient(circle at 30% 30%, #ffff8d, #fbc02d); }
-        .candy.orange { background: radial-gradient(circle at 30% 30%, #ffd180, #f57c00); }
-        .candy.purple { background: radial-gradient(circle at 30% 30%, #ea80fc, #aa00ff); }
-        .candy.green { background: radial-gradient(circle at 30% 30%, #b9f6ca, #00c853); }
-        .candy.blue { background: radial-gradient(circle at 30% 30%, #8c9eff, #2962ff); }
-        .candy.empty { opacity: 0; pointer-events: none; transform: scale(0.4); }
+.combo-banner { position: fixed; top: 38%; left: 50%; transform: translate(-50%,-50%); font-size: 56px; font-weight: 700; color: #fff; text-shadow: 0 4px 22px rgba(255,92,138,0.85); pointer-events: none; z-index: 999; opacity: 0; }
+.combo-banner.show { animation: comboFloat 1s ease-out forwards; }
+@keyframes comboFloat { 0% { opacity: 0; transform: translate(-50%,-30%) scale(0.5); } 25% { opacity: 1; transform: translate(-50%,-50%) scale(1.2); } 70% { opacity: 1; transform: translate(-50%,-55%) scale(1); } 100% { opacity: 0; transform: translate(-50%,-85%) scale(0.85); } }
+.combo-banner.tier-2 { color: #ff8fb3; } .combo-banner.tier-3 { color: #ffce4d; } .combo-banner.tier-4 { color: #ff7043; }
+.combo-banner.tier-5 { color: #c47bff; text-shadow: 0 4px 22px rgba(170,0,255,0.9); }
+.combo-banner.tier-6 { color: var(--gold); text-shadow: 0 0 32px gold, 0 4px 22px rgba(255,211,107,0.95); font-size: 68px; }
 
-        /* 特殊糖果動畫 */
-        .candy.selected { transform: scale(1.15); z-index: 2; animation: pulse 1s ease-in-out infinite; }
-        @keyframes pulse { 0%, 100% { box-shadow: 0 0 14px 3px rgba(255, 255, 255, 0.7); } 50% { box-shadow: 0 0 28px 10px rgba(255, 255, 255, 1); } }
-        .candy.row::after, .candy.col::after { content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; }
-        .candy.row::after { background: repeating-linear-gradient(0deg, transparent, transparent 8px, rgba(255, 255, 255, 0.65) 8px, rgba(255, 255, 255, 0.65) 16px); }
-        .candy.col::after { background: repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(255, 255, 255, 0.65) 8px, rgba(255, 255, 255, 0.65) 16px); }
-.candy.bomb { border-radius: 35%; border: 2px dashed rgba(255, 255, 255, 0.8); animation: bombGlow 1.4s ease-in-out infinite; }
-         @keyframes bombGlow { 0%, 100% { box-shadow: 0 0 14px rgba(255, 255, 255, 0.8); } 50% { box-shadow: 0 0 26px rgba(255, 245, 157, 1); } }
-         .candy.rainbow { background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red) !important; border: 2px solid white; animation: rainbowSpin 2s linear infinite; }
-         .candy.cross { background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red) !important; border: 2px solid white; animation: rainbowSpin 3s linear infinite; }
-         @keyframes rainbowSpin { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
+.milestone-banner { position: fixed; top: 32%; left: 50%; transform: translate(-50%,-50%); font-size: 58px; font-weight: 700; color: var(--gold); text-shadow: 0 0 32px #ff9100, 0 4px 22px rgba(0,0,0,0.5); pointer-events: none; z-index: 1500; opacity: 0; white-space: nowrap; }
+.milestone-banner.show { animation: milestoneShow 1.8s ease-out forwards; }
+@keyframes milestoneShow { 0% { opacity: 0; transform: translate(-50%,-50%) scale(0.3) rotate(-12deg); } 18% { opacity: 1; transform: translate(-50%,-50%) scale(1.3) rotate(4deg); } 32% { transform: translate(-50%,-50%) scale(1) rotate(0); } 100% { opacity: 0; transform: translate(-50%,-130%) scale(1.4); } }
 
-        /* 粒子引擎與特效 */
-        #particles { position: absolute; inset: 0; pointer-events: none; z-index: 20; }
-        .combo-banner { position: fixed; top: 38%; left: 50%; transform: translate(-50%, -50%); font-size: 56px; font-weight: 900; color: #fff; text-shadow: 0 4px 20px rgba(216, 27, 96, 0.85); pointer-events: none; z-index: 999; opacity: 0; }
-        .combo-banner.show { animation: comboFloat 1s ease-out forwards; }
-        @keyframes comboFloat { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.5); } 25% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); } 70% { opacity: 1; transform: translate(-50%, -55%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -85%) scale(0.85); } }
-        .combo-banner.tier-2 { color: #ff6491; }
-        .combo-banner.tier-3 { color: #ff9100; }
-        .combo-banner.tier-4 { color: #ff1744; }
-        .combo-banner.tier-5 { color: #aa00ff; text-shadow: 0 4px 20px rgba(170, 0, 255, 0.9); }
-        .combo-banner.tier-6 { color: #ffd54f; text-shadow: 0 0 30px gold, 0 4px 20px rgba(255, 213, 79, 0.95); font-size: 68px; }
+.candy.hint { animation: hintPulse 0.75s ease-in-out infinite; z-index: 3; }
+@keyframes hintPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.13); box-shadow: inset 0 -5px 9px rgba(0,0,0,0.3), inset 0 4px 7px rgba(255,255,255,0.45), 0 0 22px 6px rgba(255,235,59,0.95); } }
+.candy.hint-bounce { animation: hintBounce 0.4s ease-in-out 3; }
+@keyframes hintBounce { 0%,100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+.shake-screen { animation: shake 0.3s ease-in-out; }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.candy.fresh { animation: spawn var(--anim-slow) cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes spawn { 0% { transform: translateY(-54px) scale(0.4); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+.candy.clearing { animation: clearPop var(--anim-fast) ease-out forwards; }
+@keyframes clearPop { 0% { transform: scale(1) rotate(0); filter: brightness(1); opacity: 1; } 50% { transform: scale(1.3) rotate(15deg); filter: brightness(2); opacity: 0.9; } 100% { transform: scale(0) rotate(45deg); opacity: 0; } }
+.candy.shake { animation: cellShake 0.25s ease-in-out; }
+@keyframes cellShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+.hud-box.goal-close { animation: goalPulse 1s ease-in-out infinite; }
+@keyframes goalPulse { 0%,100% { box-shadow: inset 0 1px 0 rgba(255,255,255,.08); } 50% { box-shadow: 0 0 26px rgba(255,211,107,0.7); } }
 
-        /* 里程碑橫幅 (ENDLESS / TIME 達 1k / 5k / 10k...) */
-        .milestone-banner {
-            position: fixed; top: 32%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 60px; font-weight: 900; color: #ffd54f;
-            text-shadow: 0 0 30px #ff9100, 0 4px 20px rgba(0,0,0,0.45);
-            pointer-events: none; z-index: 1500; opacity: 0; white-space: nowrap;
-        }
-        .milestone-banner.show { animation: milestoneShow 1.8s ease-out forwards; }
-        @keyframes milestoneShow {
-            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-12deg); }
-            18% { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(4deg); }
-            32% { transform: translate(-50%, -50%) scale(1) rotate(0); }
-            100% { opacity: 0; transform: translate(-50%, -130%) scale(1.4); }
-        }
+.fx-flash-overlay { position: fixed; inset: 0; z-index: 9999; pointer-events: none; animation: flashAnim 0.5s ease-out forwards; }
+@keyframes flashAnim { 0% { opacity: 1; } 100% { opacity: 0; } }
+.fx-floating-text { position: fixed; color: #fff; font-size: 34px; font-weight: 700; text-shadow: 0 4px 10px rgba(0,0,0,0.5), 0 0 20px #ffd36b; transform: translate(-50%,-50%); pointer-events: none; z-index: 9999; animation: floatText 1.2s ease-out forwards; }
+@keyframes floatText { 0% { opacity: 0; transform: translate(-50%,-50%) scale(0.5); } 20% { opacity: 1; transform: translate(-50%,-60%) scale(1.2); } 100% { opacity: 0; transform: translate(-50%,-150%) scale(1.5); } }
+.fx-shuffle-out .candy { animation: shuffOut 0.25s forwards; }
+.fx-shuffle-in .candy { animation: shuffIn 0.25s forwards; }
+@keyframes shuffOut { to { transform: scale(0) rotate(180deg); opacity: 0; } }
+@keyframes shuffIn { from { transform: scale(0) rotate(-180deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
 
-        /* 卡關提示 — idle 8 秒後在可消除位置閃爍 */
-        .candy.hint { animation: hintPulse 0.75s ease-in-out infinite; z-index: 3; }
-        @keyframes hintPulse {
-            0%, 100% { transform: scale(1); box-shadow: inset -5px -5px 12px rgba(0,0,0,0.22), inset 5px 5px 12px rgba(255,255,255,0.75), 0 0 0 rgba(255, 235, 59, 0); }
-            50% { transform: scale(1.13); box-shadow: inset -5px -5px 12px rgba(0,0,0,0.22), inset 5px 5px 12px rgba(255,255,255,0.75), 0 0 22px 6px rgba(255, 235, 59, 0.95); }
-        }
-        .shake-screen { animation: shake 0.3s ease-in-out; }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
-        
-        /* 核心！掉落與消除動畫回歸 */
-        .candy.fresh { animation: spawn var(--anim-slow) cubic-bezier(0.34, 1.56, 0.64, 1); }
-        @keyframes spawn { 0% { transform: translateY(-50px) scale(0.4); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
-        .candy.clearing { animation: clearPop var(--anim-fast) ease-out forwards; }
-        @keyframes clearPop { 0% { transform: scale(1) rotate(0deg); filter: brightness(1); opacity: 1; } 50% { transform: scale(1.3) rotate(15deg); filter: brightness(2); opacity: 0.9; } 100% { transform: scale(0) rotate(45deg); opacity: 0; } }
+body.disable-fx::before, body.disable-fx::after { display: none !important; }
+body.disable-fx canvas#particles { display: none !important; }
+body.disable-fx .candy.selected { animation: none !important; box-shadow: 0 0 10px #fff !important; transform: scale(1.1); }
+body.disable-fx .candy.bomb { animation: none !important; }
+body.disable-fx .candy.cross, body.disable-fx .candy.rainbow { animation: none !important; filter: none !important; }
+body.disable-fx .shake-screen { animation: none !important; transform: none !important; }
+body.disable-fx .candy.fresh, body.disable-fx .candy.clearing { animation: none !important; }
+body.disable-fx .candy.hint { animation: none !important; }
 
-        /* 交換失敗震動 */
-        .candy.shake { animation: cellShake 0.25s ease-in-out; }
-        @keyframes cellShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+.inventory-container, .shop-container { display: none; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 12px; backdrop-filter: blur(8px); z-index: 10; margin-bottom: 12px; }
+.inventory-container.active, .shop-container.active { display: block; }
+.panel-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; color: var(--muted); }
+.panel-title b { color: var(--gold); }
+.item-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.action-btn { background: var(--surface-strong); border: 1px solid var(--border); border-radius: 14px; padding: 9px 3px; font-family: inherit; font-size: 11px; cursor: pointer; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 3px; transition: opacity .15s, filter .15s, transform .1s, background .15s; position: relative; color: #fff; }
+.action-btn:active:not(:disabled) { transform: scale(0.9); }
+.action-btn:not(:disabled):hover { background: rgba(255,255,255,0.16); }
+.action-btn:disabled { opacity: 0.42; filter: grayscale(0.5); cursor: not-allowed; }
+.action-btn span.name { font-weight: 600; }
+.action-btn span.badge { position: absolute; top: -7px; right: -7px; background: var(--accent); color: #fff; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; display: flex; align-items: center; justify-content: center; font-weight: 700; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+.action-btn span.cost { color: var(--gold); font-weight: 700; font-size: 10px; }
+.action-btn.trade-btn:disabled span.cost { color: var(--muted); }
 
-        /* 提示彈跳動畫 */
-        .candy.hint-bounce { animation: hintBounce 0.4s ease-in-out 3; }
-        @keyframes hintBounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+.overlay { position: fixed; inset: 0; background: rgba(10,4,22,0.66); backdrop-filter: blur(7px); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s; padding: 20px; }
+.overlay.active { opacity: 1; pointer-events: auto; }
+.modal { background: linear-gradient(180deg, #2e1850, #1f1038); border: 1px solid var(--border); padding: 26px 24px; border-radius: 26px; text-align: center; max-width: 92%; width: 340px; box-shadow: 0 30px 70px rgba(0,0,0,0.55); transform: translateY(22px) scale(0.97); transition: transform 0.3s; max-height: 92vh; overflow-y: auto; }
+.overlay.active .modal { transform: translateY(0) scale(1); }
+.modal h2 { margin: 0 0 6px; font-size: 30px; font-weight: 700; }
+.modal .sub { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+.brand-big { font-size: 38px; font-weight: 700; margin: 4px 0 2px; background: linear-gradient(135deg, #ff8fb3, #ffd36b); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.brand-emoji { font-size: 46px; display: block; margin-bottom: 2px; filter: drop-shadow(0 4px 10px rgba(0,0,0,.4)); }
 
-        /* 目標接近時的視覺提示 */
-        .hud-box.goal-close { animation: goalPulse 1s ease-in-out infinite; }
-        @keyframes goalPulse { 0%, 100% { box-shadow: 0 8px 20px rgba(216, 27, 96, 0.3); } 50% { box-shadow: 0 8px 30px rgba(255, 235, 59, 0.8); } }
+.btn { background: linear-gradient(135deg, var(--accent-2), var(--accent)); color: #fff; border: none; padding: 14px 20px; margin: 7px 0; width: 100%; border-radius: 16px; font-family: inherit; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.1s, box-shadow .2s; box-shadow: 0 8px 20px rgba(255,92,138,.30); }
+.btn:active { transform: scale(0.97); }
+.btn .b-sub { display: block; font-size: 11px; font-weight: 500; opacity: 0.85; margin-top: 1px; }
+.btn.resume-btn { background: linear-gradient(135deg, #66e0a0, #18b878); box-shadow: 0 8px 20px rgba(24,184,120,.3); }
+.btn.ghost { background: var(--surface-strong); box-shadow: none; border: 1px solid var(--border); }
+.btn.gold { background: linear-gradient(135deg, #ffe08a, #ffb33c); color: #5a3500; box-shadow: 0 8px 20px rgba(255,179,60,.3); }
 
-        /* 道具全螢幕特效 */
-        .fx-flash-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; pointer-events: none; animation: flashAnim 0.5s ease-out forwards; }
-        @keyframes flashAnim { 0% { opacity: 1; } 100% { opacity: 0; } }
-        .fx-floating-text { position: fixed; color: #fff; font-size: 36px; font-weight: 900; text-shadow: 0 4px 10px rgba(0,0,0,0.5), 0 0 20px #ffeb3b; transform: translate(-50%, -50%); pointer-events: none; z-index: 9999; animation: floatText 1.2s ease-out forwards; }
-        @keyframes floatText { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); } 20% { opacity: 1; transform: translate(-50%, -60%) scale(1.2); } 100% { opacity: 0; transform: translate(-50%, -150%) scale(1.5); } }
-        .fx-shuffle-out .candy { animation: shuffOut 0.25s forwards; }
-        .fx-shuffle-in .candy { animation: shuffIn 0.25s forwards; }
-        @keyframes shuffOut { to { transform: scale(0) rotate(180deg); opacity: 0; } }
-        @keyframes shuffIn { from { transform: scale(0) rotate(-180deg); opacity: 0; } to { transform: scale(1) rotate(0deg); opacity: 1; } }
+.diff-row { display: flex; gap: 6px; margin: 4px 0 14px; }
+.diff-btn { flex: 1; background: var(--surface-strong); border: 1px solid var(--border); color: var(--muted); border-radius: 12px; padding: 9px 4px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: .15s; }
+.diff-btn.active { background: linear-gradient(135deg, var(--accent-2), var(--accent)); color: #fff; border-color: transparent; box-shadow: 0 6px 14px rgba(255,92,138,.3); }
+.diff-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; text-align: left; margin: 2px 2px 4px; font-weight: 600; }
 
-        /* 特效停用 */
-        body.disable-fx::before, body.disable-fx::after { display: none !important; }
-        body.disable-fx canvas#particles { display: none !important; }
-        body.disable-fx .candy.selected { animation: none !important; box-shadow: 0 0 10px white !important; transform: scale(1.1); }
-        body.disable-fx .candy.bomb { animation: none !important; border: 2px solid white !important; }
-        body.disable-fx .candy.cross { animation: none !important; filter: none !important; }
-        body.disable-fx .shake-screen { animation: none !important; transform: none !important; }
-        body.disable-fx .candy.fresh, body.disable-fx .candy.clearing { animation: none !important; }
-        body.disable-fx .candy.hint { animation: none !important; box-shadow: inset -5px -5px 12px rgba(0,0,0,0.22), inset 5px 5px 12px rgba(255,255,255,0.75), 0 0 10px 3px rgba(255, 235, 59, 0.5) !important; }
+.menu-stats-line { color: var(--muted); font-size: 13px; margin: 2px 0 16px; display: flex; gap: 16px; justify-content: center; }
+.menu-stats-line b { color: var(--gold); }
 
-        /* UI：背包與商店 */
-        .inventory-container, .shop-container { display: none; width: 100%; max-width: 400px; background: rgba(255, 255, 255, 0.9); border-radius: 20px; padding: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); z-index: 10; margin-bottom: 12px; }
-        .inventory-container { border: 2px solid #ea80fc; }
-        .inventory-container.active, .shop-container.active { display: block; }
-        .panel-title { font-size: 13px; font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .item-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-        
-        .action-btn { background: white; border: 1px solid #ccc; border-radius: 12px; padding: 8px 2px; font-size: 11px; cursor: pointer; text-align: center; display: flex; flex-direction: column; align-items: center; transition: opacity 0.15s, filter 0.15s, transform 0.1s; position: relative; }
-        .action-btn:active:not(:disabled) { transform: scale(0.9); }
-        .action-btn:disabled { opacity: 0.55; filter: grayscale(0.55); cursor: not-allowed; }
-        .action-btn span.name { color: #333; font-weight: bold; margin-bottom: 3px; }
-        .action-btn span.badge { position: absolute; top: -6px; right: -6px; background: #aa00ff; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        .action-btn span.cost { color: #d81b60; font-weight: bold; font-size: 10px; }
-        .action-btn.trade-btn:disabled span.cost { color: #999; }
+.reward-bonus { background: linear-gradient(135deg, rgba(255,211,107,.16), rgba(255,143,60,.16)); border: 1px solid rgba(255,211,107,.4); padding: 14px; border-radius: 16px; margin: 0 0 14px; animation: bonusReveal 0.6s cubic-bezier(0.34,1.56,0.64,1); }
+.reward-bonus .bonus-label { display: block; font-size: 11px; color: var(--gold); margin-bottom: 6px; font-weight: 700; letter-spacing: 1.5px; }
+.reward-bonus b { font-size: 17px; color: #fff; display: block; }
+.reward-bonus small { font-size: 12px; color: var(--muted); display: block; margin-top: 4px; }
+@keyframes bonusReveal { 0% { transform: scale(0.5) rotate(-6deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+.reward-next-hint { color: var(--muted); font-size: 13px; margin: 8px 0 6px; }
+.star-display { margin: 6px 0 14px; display: flex; justify-content: center; gap: 12px; font-size: 40px; }
+.star-display span { animation: starPop 0.5s cubic-bezier(0.34,1.56,0.64,1) backwards; display: inline-block; }
+.star-display span:nth-child(2) { animation-delay: 0.15s; } .star-display span:nth-child(3) { animation-delay: 0.3s; }
+.star-display span.empty { filter: grayscale(1); opacity: 0.22; }
+@keyframes starPop { 0% { transform: scale(0.3) rotate(-30deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+.new-best-badge { display: none; background: linear-gradient(135deg, var(--gold), #ff9100); color: #5a3500; padding: 8px 16px; border-radius: 20px; font-weight: 700; margin: 0 0 12px; letter-spacing: 1px; font-size: 14px; }
+.new-best-badge.show { display: inline-block; animation: badgeBump 0.6s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes badgeBump { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
 
-        /* Overlays */
-        .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-        .overlay.active { opacity: 1; pointer-events: auto; }
-        .modal { background: white; padding: 25px; border-radius: 24px; text-align: center; max-width: 90%; width: 320px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); transform: translateY(20px); transition: transform 0.3s; max-height: 90vh; overflow-y: auto; }
-        .overlay.active .modal { transform: translateY(0); }
-        .modal h2 { margin: 0 0 15px 0; color: #d81b60; font-size: 26px; }
-        .btn { background: linear-gradient(135deg, #ff6491, #d81b60); color: white; border: none; padding: 12px 20px; margin: 8px 0; width: 100%; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.1s; }
-        .btn:active { transform: scale(0.97); }
-        .btn.resume-btn { background: linear-gradient(135deg, #66bb6a, #2e7d32); }
-        .reward-card { background: #fff0f5; border: 2px solid #ffb6c1; padding: 12px; border-radius: 15px; margin-bottom: 10px; text-align: left; display: flex; flex-direction: column; transition: 0.2s; }
-        .reward-card b { font-size: 16px; color: #d81b60; }
-        .reward-card small { font-size: 12px; color: #555; margin-top: 4px; }
+.ach-list { display: flex; flex-direction: column; gap: 9px; margin: 4px 0 14px; text-align: left; }
+.ach-card { display: flex; align-items: center; gap: 12px; background: var(--surface-strong); border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px; transition: .2s; }
+.ach-card.done { background: linear-gradient(135deg, rgba(255,211,107,.14), rgba(255,143,60,.1)); border-color: rgba(255,211,107,.4); }
+.ach-card .ico { font-size: 26px; width: 30px; text-align: center; filter: grayscale(1) opacity(0.5); }
+.ach-card.done .ico { filter: none; }
+.ach-card .meta { flex: 1; min-width: 0; }
+.ach-card .meta .nm { font-weight: 600; font-size: 14px; }
+.ach-card .meta .ds { font-size: 11.5px; color: var(--muted); }
+.ach-card .prog { font-size: 11px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.ach-card.done .prog { color: var(--gold); }
+.ach-bar { height: 5px; border-radius: 4px; background: rgba(255,255,255,0.1); margin-top: 5px; overflow: hidden; }
+.ach-bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); border-radius: 4px; transition: width .4s ease; }
+.ach-card.done .ach-bar > i { background: linear-gradient(90deg, var(--gold), #ff9100); }
 
-        /* 過關星等 */
-        .star-display {
-            margin: 4px 0 12px; display: flex; justify-content: center; gap: 10px; font-size: 36px;
-        }
-        .star-display span { animation: starPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; display: inline-block; }
-        .star-display span:nth-child(2) { animation-delay: 0.15s; }
-        .star-display span:nth-child(3) { animation-delay: 0.3s; }
-        .star-display span.empty { filter: grayscale(1); opacity: 0.25; }
-        @keyframes starPop { 0% { transform: scale(0.3) rotate(-30deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
-
-        /* 主選單累積星數 */
-        .menu-stars-line { color: #999; font-size: 14px; margin: -10px 0 14px; }
-        .menu-stars-line b { color: #ff9100; font-size: 16px; }
-
-        /* 5 關獎勵展示 */
-        .reward-bonus { background: linear-gradient(135deg, #fff8e1, #ffe082); border: 2px solid #ffb300; padding: 14px; border-radius: 16px; margin: 0 0 14px 0; box-shadow: 0 6px 18px rgba(255, 145, 0, 0.3); animation: bonusReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        .reward-bonus .bonus-label { display: block; font-size: 12px; color: #c77700; margin-bottom: 6px; font-weight: bold; letter-spacing: 1.5px; text-align: center; }
-        .reward-bonus b { font-size: 18px; color: #d81b60; display: block; }
-        .reward-bonus small { font-size: 12px; color: #555; display: block; margin-top: 4px; }
-        @keyframes bonusReveal { 0% { transform: scale(0.5) rotate(-6deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
-        .reward-next-hint { color: #888; font-size: 13px; margin: 8px 0 4px 0; }
-
-        /* 破紀錄徽章 */
-        .new-best-badge {
-            display: none; background: linear-gradient(135deg, #ffd54f, #ff9100);
-            color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold;
-            margin: 0 0 12px 0; box-shadow: 0 4px 12px rgba(255, 145, 0, 0.45);
-            letter-spacing: 1px; font-size: 14px;
-        }
-        .new-best-badge.show { display: inline-block; animation: badgeBump 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        @keyframes badgeBump { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
-    </style>
+.ach-toast { position: fixed; top: 18px; left: 50%; transform: translate(-50%,-130%); z-index: 2000; display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #2e1850, #3a1d5c); border: 1px solid rgba(255,211,107,.5); border-radius: 18px; padding: 12px 18px 12px 14px; box-shadow: 0 16px 40px rgba(0,0,0,0.5); pointer-events: none; max-width: 90vw; }
+.ach-toast.show { animation: achToast 3.4s cubic-bezier(0.2,0.9,0.2,1) forwards; }
+@keyframes achToast { 0% { transform: translate(-50%,-130%); } 10% { transform: translate(-50%,0); } 88% { transform: translate(-50%,0); } 100% { transform: translate(-50%,-130%); } }
+.ach-toast .ico { font-size: 32px; filter: drop-shadow(0 3px 6px rgba(0,0,0,.4)); }
+.ach-toast .txt .lbl { font-size: 10px; color: var(--gold); letter-spacing: 1.5px; font-weight: 700; text-transform: uppercase; }
+.ach-toast .txt .nm { font-size: 16px; font-weight: 600; }
+</style>
 </head>
 <body>
 
-    <div class="top-bar">
-        <button id="btn-pause" class="toggle-btn pause-btn" style="display: none;" onclick="window.game.openPauseMenu()">⏸ 選單</button>
-        <button id="btn-sound-toggle" class="toggle-btn" onclick="window.game.toggleSound()">🔊 聲音</button>
-        <button id="btn-fx-toggle" class="toggle-btn" onclick="window.game.toggleFX()">✨ 特效</button>
+<div class="app-shell">
+  <div class="top-bar">
+    <div class="brand-mini"><span class="dot">🍬</span> Candy Blast</div>
+    <button id="btn-pause" class="toggle-btn pause-btn" style="display:none" onclick="window.game.openPauseMenu()">⏸</button>
+    <button id="btn-sound-toggle" class="toggle-btn" onclick="window.game.toggleSound()">🔊</button>
+    <button id="btn-fx-toggle" class="toggle-btn" onclick="window.game.toggleFX()">✨</button>
+  </div>
+
+  <div class="hud">
+    <div class="hud-box score-box"><label>分數</label><span id="score">0</span></div>
+    <div class="hud-box" id="hud-center"><label id="center-label">最佳</label><span id="center-val">0</span></div>
+    <div class="hud-box"><label id="limit-label">步數</label><span id="limit-val">∞</span></div>
+  </div>
+
+  <div class="inventory-container" id="inventory-panel">
+    <div class="panel-title" style="justify-content:center;">🎒 我的背包 <b style="margin-left:6px;">(過關獎勵)</b></div>
+    <div class="item-grid">
+      <button class="action-btn" id="btn-inv-detonate" onclick="window.game.useInventory('DETONATE')" disabled><span class="name">🧨 全爆</span><span class="badge" id="inv-detonate">0</span></button>
+      <button class="action-btn" id="btn-inv-moves" onclick="window.game.useInventory('EXTRA_MOVES')" disabled><span class="name">🎁 步數</span><span class="badge" id="inv-moves">0</span></button>
+      <button class="action-btn" id="btn-inv-double-score" onclick="window.game.useInventory('DOUBLE_SCORE')" disabled><span class="name">💎 雙倍</span><span class="badge" id="inv-double-score">0</span></button>
     </div>
+  </div>
 
-    <div class="hud">
-        <div class="hud-box"><label>SCORE</label><span id="score">0</span></div>
-        <div class="hud-box" id="hud-center"><label id="center-label">BEST</label><span id="center-val">0</span></div>
-        <div class="hud-box"><label id="limit-label">MOVES</label><span id="limit-val">∞</span></div>
+  <div class="game-container" id="game-container">
+    <div class="grid" id="grid"></div>
+    <canvas id="particles"></canvas>
+  </div>
+  <div class="combo-banner" id="comboBanner"></div>
+  <div class="milestone-banner" id="milestoneBanner"></div>
+
+  <div class="shop-container" id="trade-post">
+    <div class="panel-title"><span>🏪 交易市場</span><span>餘額 <b id="trade-moves-pool">0</b> 步</span></div>
+    <div class="item-grid">
+      <button class="action-btn trade-btn" data-cost="5" onclick="window.game.tradeItem('SPAWN_BOMB', 5)"><span class="name">💣 隨機炸</span><span class="cost">5 步</span></button>
+      <button class="action-btn trade-btn" data-cost="4" onclick="window.game.tradeItem('SHUFFLE', 4)"><span class="name">🔀 重洗牌</span><span class="cost">4 步</span></button>
+      <button class="action-btn trade-btn" data-cost="6" onclick="window.game.tradeItem('RANDOM_CLEAR', 6)"><span class="name">✨ 隨機消</span><span class="cost">6 步</span></button>
+      <button class="action-btn trade-btn" data-cost="10" onclick="window.game.tradeItem('SPAWN_CROSS', 10)"><span class="name">🌟 產十字</span><span class="cost">10 步</span></button>
     </div>
+  </div>
+</div>
 
-<!-- 背包區 -->
-     <div class="inventory-container" id="inventory-panel">
-         <div class="panel-title" style="color: #aa00ff; justify-content: center;">🎒 我的背包 (過關獎勵)</div>
-         <div class="item-grid">
-             <button class="action-btn" style="border-color: #ea80fc;" id="btn-inv-detonate" onclick="window.game.useInventory('DETONATE')" disabled>
-                 <span class="name">🧨 全爆</span><span class="badge" id="inv-detonate">0</span>
-             </button>
-             <button class="action-btn" style="border-color: #ea80fc;" id="btn-inv-moves" onclick="window.game.useInventory('EXTRA_MOVES')" disabled>
-                 <span class="name">🎁 步數</span><span class="badge" id="inv-moves">0</span>
-             </button>
-<button class="action-btn" style="border-color: #ea80fc;" id="btn-inv-double-score" onclick="window.game.useInventory('DOUBLE_SCORE')" disabled>
-                 <span class="name">💎 雙倍積分</span><span class="badge" id="inv-double-score">0</span>
-             </button>
-         </div>
-     </div>
-
-    <!-- 遊戲區 -->
-    <div class="game-container" id="game-container">
-        <div class="grid" id="grid"></div>
-        <canvas id="particles"></canvas>
+<div id="menu-overlay" class="overlay active">
+  <div class="modal">
+    <span class="brand-emoji">🍭</span>
+    <div class="brand-big">Candy Blast</div>
+    <p class="sub">配對、爆破、連擊不斷</p>
+    <div class="menu-stats-line"><span>累積星數 <b>⭐ <span id="menu-total-stars">0</span></b></span><span>最佳 <b id="menu-best">0</b></span></div>
+    <button class="btn resume-btn" id="btn-resume" style="display:none" onclick="window.game.resumeGame()">▶️ 繼續遊戲</button>
+    <div class="diff-label">闖關難度</div>
+    <div class="diff-row" id="diff-row">
+      <button class="diff-btn" data-diff="EASY" onclick="window.game.setDifficulty('EASY')">輕鬆<br>25步</button>
+      <button class="diff-btn active" data-diff="NORMAL" onclick="window.game.setDifficulty('NORMAL')">普通<br>21步</button>
+      <button class="diff-btn" data-diff="HARD" onclick="window.game.setDifficulty('HARD')">困難<br>17步</button>
     </div>
-    <div class="combo-banner" id="comboBanner"></div>
-    <div class="milestone-banner" id="milestoneBanner"></div>
+    <button class="btn" onclick="window.game.startMode('STAGE')">🏆 闖關模式<span class="b-sub">達成目標分數、收集星星與道具</span></button>
+    <button class="btn ghost" onclick="window.game.startMode('ENDLESS')">♾️ 無盡模式<span class="b-sub">沒有限制，挑戰最高分</span></button>
+    <button class="btn ghost" onclick="window.game.startMode('TIME')">⏱️ 計時模式<span class="b-sub">60 秒極速衝刺</span></button>
+    <button class="btn gold" onclick="window.game.openAchievements()">🏅 成就殿堂</button>
+  </div>
+</div>
 
-<!-- 交易市場 -->
-     <div class="shop-container" id="trade-post">
-         <div class="panel-title" style="color:#d81b60;">
-             <span>🏪 交易市場</span>
-             <span>可用餘額: <b id="trade-moves-pool" style="font-size:16px;">0</b> 步</span>
-         </div>
-         <div class="item-grid">
-             <button class="action-btn trade-btn" data-cost="5" style="border-color: #ff9a9e;" onclick="window.game.tradeItem('SPAWN_BOMB', 5)">
-                 <span class="name">💣 隨機炸</span><span class="cost">5 步</span>
-             </button>
-             <button class="action-btn trade-btn" data-cost="4" style="border-color: #ff9a9e;" onclick="window.game.tradeItem('SHUFFLE', 4)">
-                 <span class="name">🔀 重洗牌</span><span class="cost">4 步</span>
-             </button>
-             <button class="action-btn trade-btn" data-cost="6" style="border-color: #ff9a9e;" onclick="window.game.tradeItem('RANDOM_CLEAR', 6)">
-                 <span class="name">✨ 隨機消</span><span class="cost">6 步</span>
-             </button>
-<button class="action-btn trade-btn" data-cost="10" style="border-color: #ff9a9e;" onclick="window.game.tradeItem('SPAWN_CROSS', 10)">
-                  <span class="name">🌟 產十字</span><span class="cost">10 步</span>
-              </button>
-          </div>
-     </div>
+<div id="ach-overlay" class="overlay">
+  <div class="modal">
+    <h2>🏅 成就殿堂</h2>
+    <p class="sub" id="ach-summary">已解鎖 0 / 0</p>
+    <div class="ach-list" id="ach-list"></div>
+    <button class="btn ghost" onclick="window.game.closeAchievements()">返回</button>
+  </div>
+</div>
 
-    <!-- Overlays -->
-    <div id="menu-overlay" class="overlay active">
-        <div class="modal">
-            <h2>Sweet Candy 🍭</h2>
-            <p class="menu-stars-line">累積星數 <b>⭐ <span id="menu-total-stars">0</span></b></p>
-            <button class="btn resume-btn" id="btn-resume" style="display: none;" onclick="window.game.resumeGame()">▶️ 繼續遊戲</button>
-            <button class="btn" onclick="window.game.startMode('ENDLESS')">♾️ 無盡模式</button>
-            <button class="btn" onclick="window.game.startMode('TIME')">⏱️ 計時模式 (60秒)</button>
-            <button class="btn" onclick="window.game.startMode('STAGE')">🏆 闖關模式</button>
-        </div>
+<div id="reward-overlay" class="overlay">
+  <div class="modal">
+    <h2 id="reward-title">過關！🎉</h2>
+    <div id="reward-stars" class="star-display"></div>
+    <p style="color:var(--gold);font-weight:600;font-size:13px;">剩餘步數已轉入交易市場餘額！</p>
+    <div id="reward-bonus" class="reward-bonus" style="display:none">
+      <span class="bonus-label">🎁 隨機獎勵入手</span>
+      <b id="reward-bonus-name"></b>
+      <small id="reward-bonus-desc"></small>
     </div>
+    <p id="reward-next-hint" class="reward-next-hint"></p>
+    <button class="btn" onclick="window.game.claimReward()">下一關 ▶</button>
+  </div>
+</div>
 
-    <div id="reward-overlay" class="overlay">
-        <div class="modal">
-            <h2 id="reward-title">Level Clear! 🎉</h2>
-            <div id="reward-stars" class="star-display"></div>
-            <p style="color:#d81b60; font-weight:bold;">剩餘步數已轉入交易所餘額！</p>
-            <div id="reward-bonus" class="reward-bonus" style="display: none;">
-                <span class="bonus-label">🎁 隨機獎勵入手</span>
-                <b id="reward-bonus-name"></b>
-                <small id="reward-bonus-desc"></small>
-            </div>
-            <p id="reward-next-hint" class="reward-next-hint"></p>
-            <button class="btn" onclick="window.game.claimReward()">下一關 ▶</button>
-        </div>
-    </div>
+<div id="result-overlay" class="overlay">
+  <div class="modal">
+    <span id="result-best-badge" class="new-best-badge">🏆 新紀錄！</span>
+    <h2 id="result-title">遊戲結束</h2>
+    <p id="result-desc" class="sub">你的分數：0</p>
+    <button class="btn" onclick="window.game.restartCurrentMode()">再玩一次</button>
+    <button class="btn ghost" onclick="window.game.showMenu()">回主選單</button>
+  </div>
+</div>
 
-    <div id="result-overlay" class="overlay">
-        <div class="modal">
-            <span id="result-best-badge" class="new-best-badge">🏆 NEW BEST!</span>
-            <h2 id="result-title">Game Over</h2>
-            <p id="result-desc">Your score: 0</p>
-            <button class="btn" onclick="window.game.restartCurrentMode()">再玩一次</button>
-            <button class="btn" style="background: #bbb;" onclick="window.game.showMenu()">回主選單</button>
-        </div>
-    </div>
+<div class="ach-toast" id="ach-toast">
+  <span class="ico" id="ach-toast-ico">🏅</span>
+  <div class="txt"><div class="lbl">成就解鎖</div><div class="nm" id="ach-toast-name"></div></div>
+</div>
 
-    <script>
-    'use strict';
+<script>
+'use strict';
 
 const Config = Object.freeze({
-         width: 8, height: 8,
-         colors: ['red', 'yellow', 'orange', 'purple', 'green', 'blue'],
-         colorHex: { red: '#d50000', yellow: '#fbc02d', orange: '#f57c00', purple: '#aa00ff', green: '#00c853', blue: '#2962ff' },
-         timing: { swap: 180, clear: 120, drop: 280 },
-         scoring: { base: 10, comboBonus: 0.5 },
-         particles: { count: 14, spread: 11, gravity: 0.4, decay: 0.04 },
-         swipeThreshold: 20,
-         bestScoreKey: 'sweetCandy_bestScore_v10',
-         soundMutedKey: 'sweetCandy_soundMuted_v1',
-         totalStarsKey: 'sweetCandy_totalStars_v1',
-         maxTradePool: 80,
-         hintIdleMs: 8000,
-         endlessMilestones: [1000, 5000, 10000, 25000, 50000, 100000],
-         stageInitialMoves: 21,
-         boardCells: 64,
-         tradeCosts: { SPAWN_BOMB: 5, SHUFFLE: 4, RANDOM_CLEAR: 6, SPAWN_CROSS: 10 },
-         tradeCooldown: 3,
-         bonusConversionRate: 0.5
-      });
+  width: 8, height: 8,
+  colors: ['red', 'yellow', 'orange', 'purple', 'green', 'blue'],
+  colorHex: { red: '#ff5d6c', yellow: '#ffce4d', orange: '#ff8f3c', purple: '#b06bff', green: '#4fdd97', blue: '#5e95ff' },
+  timing: { swap: 180, clear: 120, drop: 280 },
+  scoring: { base: 10, comboBonus: 0.5 },
+  particles: { count: 14, spread: 11, gravity: 0.4, decay: 0.04 },
+  swipeThreshold: 20,
+  bestScoreKey: 'candyBlast_bestScore_v1',
+  soundMutedKey: 'candyBlast_soundMuted_v1',
+  totalStarsKey: 'candyBlast_totalStars_v1',
+  statsKey: 'candyBlast_stats_v1',
+  achKey: 'candyBlast_ach_v1',
+  diffKey: 'candyBlast_diff_v1',
+  maxTradePool: 80,
+  hintIdleMs: 8000,
+  endlessMilestones: [1000, 5000, 10000, 25000, 50000, 100000],
+  stageInitialMoves: 21,
+  boardCells: 64,
+  tradeCosts: { SPAWN_BOMB: 5, SHUFFLE: 4, RANDOM_CLEAR: 6, SPAWN_CROSS: 10 },
+  tradeCooldown: 3,
+  bonusConversionRate: 0.5
+});
 
-    // Combo 等級命名 (索引 = combo 數,2 起算才顯示)
-    const COMBO_LABELS = ['', '', 'Sweet!', 'Sugar Rush!', 'DELICIOUS!', 'CANDY STORM!', 'LEGENDARY!'];
+const DIFFICULTY = Object.freeze({
+  EASY:   { moves: 25, mult: 0.82, label: '輕鬆' },
+  NORMAL: { moves: 21, mult: 1.0,  label: '普通' },
+  HARD:   { moves: 17, mult: 1.28, label: '困難' }
+});
 
-    // 關卡背景配色表 (闖關模式每升一級切換,其餘模式固定第 0 組)
-    const Themes = Object.freeze([
-        { bg: 'linear-gradient(135deg, #ff9a9e 0%, #fad0c4 45%, #c8a2c8 100%)', blob1: 'rgba(255, 138, 128, 0.65)', blob2: 'rgba(170, 0, 255, 0.45)' }, // 草莓粉
-        { bg: 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 50%, #d4fc79 100%)', blob1: 'rgba(66, 165, 245, 0.6)',  blob2: 'rgba(0, 188, 212, 0.45)' },  // 海洋藍
-        { bg: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 50%, #a1c4fd 100%)', blob1: 'rgba(102, 187, 106, 0.6)', blob2: 'rgba(66, 165, 245, 0.45)' }, // 薄荷綠
-        { bg: 'linear-gradient(135deg, #fab1a0 0%, #ffeaa7 50%, #fdcb6e 100%)', blob1: 'rgba(255, 112, 67, 0.6)',  blob2: 'rgba(255, 167, 38, 0.45)' }, // 日落橙
-        { bg: 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 50%, #ffecd2 100%)', blob1: 'rgba(126, 87, 194, 0.6)',  blob2: 'rgba(236, 64, 122, 0.45)' }, // 葡萄紫
-        { bg: 'linear-gradient(135deg, #fceabb 0%, #ace0f9 50%, #f6d365 100%)', blob1: 'rgba(255, 238, 88, 0.55)', blob2: 'rgba(38, 198, 218, 0.45)' }  // 檸檬黃
-    ]);
+const ACHIEVEMENTS = Object.freeze([
+  { id: 'first', icon: '🍬', name: '初嚐甜頭', desc: '完成第一次消除', stat: 'matches', goal: 1 },
+  { id: 'combo5', icon: '🌪️', name: '甜蜜風暴', desc: '達成 5 連擊', stat: 'maxCombo', goal: 5 },
+  { id: 'special10', icon: '✨', name: '特製糖工坊', desc: '製造 10 顆特殊糖果', stat: 'specials', goal: 10 },
+  { id: 'candies500', icon: '🎯', name: '糖果獵人', desc: '累積消除 500 顆糖果', stat: 'candies', goal: 500 },
+  { id: 'candies5k', icon: '👑', name: '糖果大師', desc: '累積消除 5,000 顆糖果', stat: 'candies', goal: 5000 },
+  { id: 'level10', icon: '🏆', name: '闖關高手', desc: '通過闖關第 10 關', stat: 'maxLevel', goal: 10 },
+  { id: 'stars30', icon: '⭐', name: '星光熠熠', desc: '累積收集 30 顆星星', stat: 'totalStars', goal: 30 },
+  { id: 'score10k', icon: '💯', name: '高分玩家', desc: '單局達到 10,000 分', stat: 'maxScore', goal: 10000 }
+]);
 
-    const SPECIAL = Object.freeze({ NONE: 'none', ROW: 'row', COL: 'col', BOMB: 'bomb', CROSS: 'cross' });
-    const GAME_STATE = Object.freeze({ MENU: 'MENU', PLAYING: 'PLAYING', PAUSED: 'PAUSED', REWARD: 'REWARD', GAME_OVER: 'GAME_OVER' });
+const COMBO_LABELS = ['', '', 'Sweet!', 'Sugar Rush!', 'DELICIOUS!', 'CANDY STORM!', 'LEGENDARY!'];
 
-// 道具顯示資訊 (5 關獎勵抽取池)
+const Themes = Object.freeze([
+  { bg: 'radial-gradient(120% 120% at 50% 0%, #3a1d5c 0%, #241040 55%, #160a2b 100%)', blob1: 'rgba(255,92,138,0.40)',  blob2: 'rgba(94,234,212,0.26)' },
+  { bg: 'radial-gradient(120% 120% at 50% 0%, #163a55 0%, #0f2740 55%, #08182b 100%)', blob1: 'rgba(94,149,255,0.38)',  blob2: 'rgba(79,221,151,0.26)' },
+  { bg: 'radial-gradient(120% 120% at 50% 0%, #1a4d3e 0%, #0f3329 55%, #08201a 100%)', blob1: 'rgba(79,221,151,0.36)',  blob2: 'rgba(94,149,255,0.24)' },
+  { bg: 'radial-gradient(120% 120% at 50% 0%, #5c2f1a 0%, #401e10 55%, #2b1308 100%)', blob1: 'rgba(255,143,60,0.40)',  blob2: 'rgba(255,206,77,0.26)' },
+  { bg: 'radial-gradient(120% 120% at 50% 0%, #4a1d5c 0%, #321040 55%, #1f0a2b 100%)', blob1: 'rgba(176,107,255,0.40)', blob2: 'rgba(255,143,179,0.26)' },
+  { bg: 'radial-gradient(120% 120% at 50% 0%, #5c4a1a 0%, #403410 55%, #2b2208 100%)', blob1: 'rgba(255,211,107,0.36)', blob2: 'rgba(94,234,212,0.24)' }
+]);
+
+const SPECIAL = Object.freeze({ NONE: 'none', ROW: 'row', COL: 'col', BOMB: 'bomb', CROSS: 'cross' });
+const GAME_STATE = Object.freeze({ MENU: 'MENU', PLAYING: 'PLAYING', PAUSED: 'PAUSED', REWARD: 'REWARD', GAME_OVER: 'GAME_OVER' });
+
 const ItemInfo = Object.freeze({
-          DETONATE:    { name: '🧨 炸彈遙控器',   desc: '引爆畫面所有特殊糖果' },
-          EXTRA_MOVES: { name: '🎁 幸運步數錦囊', desc: '固定恢復 3 步' },
-          DOUBLE_SCORE:{ name: '💎 雙倍積分',     desc: '接下來 5 步得分翻倍' }
-      });
-      const ItemKeys = Object.freeze(['DETONATE', 'EXTRA_MOVES', 'DOUBLE_SCORE']);
-    const REWARD_EVERY = 5;
+  DETONATE:    { name: '🧨 炸彈遙控器',   desc: '引爆畫面所有特殊糖果' },
+  EXTRA_MOVES: { name: '🎁 幸運步數錦囊', desc: '固定恢復 3 步' },
+  DOUBLE_SCORE:{ name: '💎 雙倍積分',     desc: '接下來 5 步得分翻倍' }
+});
+const ItemKeys = Object.freeze(['DETONATE', 'EXTRA_MOVES', 'DOUBLE_SCORE']);
+const REWARD_EVERY = 5;
 
-    const Utils = {
-        delay: ms => new Promise(r => setTimeout(r, ms)),
-        randomColor: () => Config.colors[Math.floor(Math.random() * Config.colors.length)],
-        randomColorExcept: (...exclude) => {
-            const pool = Config.colors.filter(c => !exclude.includes(c));
-            return pool[Math.floor(Math.random() * pool.length)];
-        },
-        inBounds: (r, c) => r >= 0 && r < Config.height && c >= 0 && c < Config.width,
-        idx: (r, c) => r * Config.width + c,
-        rcOf: i => [Math.floor(i / Config.width), i % Config.width],
-        reflow: el => { void el.offsetWidth; }
+const Utils = {
+  delay: ms => new Promise(r => setTimeout(r, ms)),
+  randomColor: () => Config.colors[Math.floor(Math.random() * Config.colors.length)],
+  randomColorExcept: (...exclude) => {
+    const pool = Config.colors.filter(c => !exclude.includes(c));
+    return pool[Math.floor(Math.random() * pool.length)];
+  },
+  inBounds: (r, c) => r >= 0 && r < Config.height && c >= 0 && c < Config.width,
+  idx: (r, c) => r * Config.width + c,
+  rcOf: i => [Math.floor(i / Config.width), i % Config.width],
+  reflow: el => { void el.offsetWidth; }
+};
+
+const BGM_SUGAR_PLUM = Object.freeze([
+  { f: 659.25, d: 0.3, bass: 164.81 }, { f: 659.25, d: 0.3 },
+  { f: 659.25, d: 0.15 }, { f: 622.25, d: 0.15 }, { f: 659.25, d: 0.3 },
+  { f: 659.25, d: 0.3, bass: 220.00 }, { f: 493.88, d: 0.3 },
+  { f: 587.33, d: 0.3 }, { f: 523.25, d: 0.3 },
+  { f: 659.25, d: 0.3, bass: 164.81 }, { f: 659.25, d: 0.3 },
+  { f: 659.25, d: 0.15 }, { f: 622.25, d: 0.15 }, { f: 659.25, d: 0.3 },
+  { f: 493.88, d: 0.3, bass: 220.00 }, { f: 440.00, d: 0.6 },
+  { f: 880.00, d: 0.2, bass: 246.94 }, { f: 987.77, d: 0.2 },
+  { f: 1046.50, d: 0.2 }, { f: 987.77, d: 0.2 },
+  { f: 880.00, d: 0.2 }, { f: 783.99, d: 0.2 },
+  { f: 740.00, d: 0.2 }, { f: 659.25, d: 0.4 },
+  { f: 587.33, d: 0.3, bass: 220.00 }, { f: 523.25, d: 0.3 },
+  { f: 493.88, d: 0.3 }, { f: 440.00, d: 0.6 }
+]);
+const BGM_MINUET = Object.freeze([
+  { f: 587.33, d: 0.5, bass: 196.00 },
+  { f: 392.00, d: 0.25 }, { f: 440.00, d: 0.25 }, { f: 493.88, d: 0.25 }, { f: 523.25, d: 0.25 },
+  { f: 587.33, d: 0.5, bass: 196.00 },
+  { f: 392.00, d: 0.5 }, { f: 392.00, d: 0.5 },
+  { f: 659.25, d: 0.5, bass: 261.63 },
+  { f: 523.25, d: 0.25 }, { f: 587.33, d: 0.25 }, { f: 659.25, d: 0.25 }, { f: 739.99, d: 0.25 },
+  { f: 783.99, d: 0.5, bass: 196.00 },
+  { f: 392.00, d: 0.5 }, { f: 392.00, d: 0.5 },
+  { f: 523.25, d: 0.5, bass: 261.63 },
+  { f: 587.33, d: 0.25 }, { f: 523.25, d: 0.25 }, { f: 493.88, d: 0.25 }, { f: 440.00, d: 0.25 },
+  { f: 493.88, d: 0.5, bass: 196.00 },
+  { f: 523.25, d: 0.25 }, { f: 493.88, d: 0.25 }, { f: 440.00, d: 0.25 }, { f: 392.00, d: 0.25 },
+  { f: 369.99, d: 0.5, bass: 146.83 },
+  { f: 392.00, d: 0.25 }, { f: 440.00, d: 0.25 }, { f: 493.88, d: 0.25 }, { f: 392.00, d: 0.25 },
+  { f: 440.00, d: 1.5, bass: 146.83 }
+]);
+const BGM_CANON = Object.freeze([
+  { f: 739.99, d: 0.4, bass: 146.83 }, { f: 659.25, d: 0.4 }, { f: 587.33, d: 0.4 }, { f: 554.37, d: 0.4 },
+  { f: 493.88, d: 0.4, bass: 220.00 }, { f: 440.00, d: 0.4 }, { f: 493.88, d: 0.4 }, { f: 554.37, d: 0.4 },
+  { f: 587.33, d: 0.4, bass: 246.94 }, { f: 554.37, d: 0.4 }, { f: 493.88, d: 0.4 }, { f: 440.00, d: 0.4 },
+  { f: 392.00, d: 0.4, bass: 185.00 }, { f: 369.99, d: 0.4 }, { f: 392.00, d: 0.4 }, { f: 329.63, d: 0.4 },
+  { f: 369.99, d: 0.4, bass: 196.00 }, { f: 293.66, d: 0.4 }, { f: 329.63, d: 0.4 }, { f: 369.99, d: 0.4 },
+  { f: 392.00, d: 0.4, bass: 146.83 }, { f: 369.99, d: 0.4 }, { f: 329.63, d: 0.4 }, { f: 293.66, d: 0.4 },
+  { f: 523.25, d: 0.4, bass: 196.00 }, { f: 493.88, d: 0.4 }, { f: 440.00, d: 0.4 }, { f: 392.00, d: 0.4 },
+  { f: 369.99, d: 0.4, bass: 220.00 }, { f: 329.63, d: 0.4 }, { f: 369.99, d: 0.4 }, { f: 440.00, d: 0.4 }
+]);
+const BGM_NACHTMUSIK = Object.freeze([
+  { f: 392.00, d: 0.4, bass: 196.00 }, { f: 587.33, d: 0.4 }, { f: 392.00, d: 0.4 }, { f: 587.33, d: 0.4 },
+  { f: 392.00, d: 0.4, bass: 196.00 }, { f: 587.33, d: 0.4 }, { f: 783.99, d: 0.8 },
+  { f: 587.33, d: 0.2, bass: 146.83 }, { f: 587.33, d: 0.2 }, { f: 587.33, d: 0.2 }, { f: 493.88, d: 0.6 },
+  { f: 440.00, d: 0.2, bass: 220.00 }, { f: 523.25, d: 0.2 }, { f: 523.25, d: 0.2 }, { f: 369.99, d: 0.6 },
+  { f: 440.00, d: 0.2, bass: 220.00 }, { f: 523.25, d: 0.2 }, { f: 523.25, d: 0.2 }, { f: 783.99, d: 0.6 },
+  { f: 392.00, d: 0.2, bass: 196.00 }, { f: 392.00, d: 0.2 }, { f: 392.00, d: 0.2 }, { f: 392.00, d: 0.2 },
+  { f: 587.33, d: 0.4, bass: 196.00 }, { f: 587.33, d: 0.4 }, { f: 783.99, d: 0.8 }
+]);
+const BGM_TRACKS = Object.freeze([
+  { name: '糖梅仙子之舞', melody: BGM_SUGAR_PLUM },
+  { name: 'Minuet in G', melody: BGM_MINUET },
+  { name: 'Canon in D', melody: BGM_CANON },
+  { name: 'Eine kleine Nachtmusik', melody: BGM_NACHTMUSIK }
+]);
+const BGM_TRACK_PER_STAGES = 10;
+
+class AudioEngine {
+  constructor() {
+    this.ctx = null; this.master = null;
+    this.muted = (() => { try { return localStorage.getItem(Config.soundMutedKey) === '1'; } catch (_) { return false; } })();
+    this.bgmTimer = null; this._bgmActive = false; this._currentTrack = 0;
+    this._hapticEnabled = (navigator.vibrate !== undefined);
+  }
+  vibrate(pattern) { if (this._hapticEnabled && !this.muted) navigator.vibrate(pattern); }
+  _ensure() {
+    if (!this.ctx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return false;
+      this.ctx = new Ctx();
+      this.master = this.ctx.createGain(); this.master.gain.value = 0.5;
+      this.master.connect(this.ctx.destination);
+    }
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    return true;
+  }
+  _tone(freq, dur, type = 'sine', vol = 0.3, attack = 0.005) {
+    if (this.muted || !this._ensure()) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+    osc.type = type; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(vol, t + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(this.master);
+    osc.start(t); osc.stop(t + dur + 0.05);
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+  }
+  _glide(f1, f2, dur, type = 'sine', vol = 0.3) {
+    if (this.muted || !this._ensure()) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f1, t);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(f2, 1), t + dur);
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(this.master);
+    osc.start(t); osc.stop(t + dur + 0.05);
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+  }
+  click() { this._tone(880, 0.04, 'square', 0.08); }
+  swap() { this._glide(420, 620, 0.1, 'triangle', 0.18); }
+  match() { this._glide(720, 1080, 0.14, 'triangle', 0.2); }
+  combo(n) { const base = 600 + Math.min(n - 1, 8) * 70; for (let i = 0; i < 3; i++) setTimeout(() => this._tone(base + i * 130, 0.09, 'triangle', 0.22), i * 55); }
+  special() { this._glide(1000, 1800, 0.18, 'sine', 0.18); setTimeout(() => this._tone(2200, 0.06, 'sine', 0.14), 90); }
+  explode() { this._glide(380, 60, 0.32, 'sawtooth', 0.26); }
+  levelClear() { [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => setTimeout(() => this._tone(f, 0.22, 'triangle', 0.24), i * 90)); }
+  gameOver() { [392, 349.23, 311.13, 261.63].forEach((f, i) => setTimeout(() => this._tone(f, 0.28, 'sawtooth', 0.22), i * 140)); }
+  trade() { this._glide(700, 1000, 0.13, 'sine', 0.2); setTimeout(() => this._tone(1300, 0.06, 'sine', 0.17), 70); }
+  fail() { this._tone(180, 0.18, 'square', 0.16); }
+  startBGM(trackIndex = 0) {
+    if (this.muted || this._bgmActive) return;
+    if (!this._ensure()) return;
+    this._currentTrack = ((trackIndex % BGM_TRACKS.length) + BGM_TRACKS.length) % BGM_TRACKS.length;
+    this._bgmActive = true;
+    let i = 0;
+    const playNext = () => {
+      if (!this._bgmActive || this.muted) { this._bgmActive = false; this.bgmTimer = null; return; }
+      const melody = BGM_TRACKS[this._currentTrack].melody;
+      const note = melody[i % melody.length];
+      this._tone(note.f, note.d * 0.92, 'sine', 0.06, 0.04);
+      if (note.bass) this._tone(note.bass, note.d * 1.4, 'triangle', 0.045, 0.03);
+      i++;
+      this.bgmTimer = setTimeout(playNext, note.d * 1000);
     };
+    playNext();
+  }
+  switchTrack(trackIndex) {
+    const target = ((trackIndex % BGM_TRACKS.length) + BGM_TRACKS.length) % BGM_TRACKS.length;
+    if (this._currentTrack === target && this._bgmActive) return;
+    this.stopBGM(); this.startBGM(target);
+  }
+  stopBGM() { this._bgmActive = false; if (this.bgmTimer) { clearTimeout(this.bgmTimer); this.bgmTimer = null; } }
+  toggleMute() {
+    this.muted = !this.muted;
+    try { localStorage.setItem(Config.soundMutedKey, this.muted ? '1' : '0'); } catch (_) {}
+    if (this.muted) this.stopBGM();
+    return this.muted;
+  }
+}
 
-    // ==========================================
-    // BGM 譜表：每首 ~8-14 秒循環,STAGE 模式每 10 關切換下一首
-    // 結構：{ f: 主旋律頻率, d: 秒數, bass?: 該拍的和弦根音 (僅標於小節首拍即可) }
-    // ==========================================
-
-    // Tchaikovsky - Dance of the Sugar Plum Fairy (E 小調,celesta 主題簡化版)
-    const BGM_SUGAR_PLUM = Object.freeze([
-        { f: 659.25, d: 0.3,  bass: 164.81 }, { f: 659.25, d: 0.3 },
-        { f: 659.25, d: 0.15 }, { f: 622.25, d: 0.15 }, { f: 659.25, d: 0.3 },
-        { f: 659.25, d: 0.3,  bass: 220.00 }, { f: 493.88, d: 0.3 },
-        { f: 587.33, d: 0.3 }, { f: 523.25, d: 0.3 },
-        { f: 659.25, d: 0.3,  bass: 164.81 }, { f: 659.25, d: 0.3 },
-        { f: 659.25, d: 0.15 }, { f: 622.25, d: 0.15 }, { f: 659.25, d: 0.3 },
-        { f: 493.88, d: 0.3,  bass: 220.00 }, { f: 440.00, d: 0.6 },
-        // 高音閃爍下行 (celesta 招牌音色)
-        { f: 880.00, d: 0.2,  bass: 246.94 }, { f: 987.77, d: 0.2 },
-        { f: 1046.50, d: 0.2 }, { f: 987.77, d: 0.2 },
-        { f: 880.00, d: 0.2 }, { f: 783.99, d: 0.2 },
-        { f: 740.00, d: 0.2 }, { f: 659.25, d: 0.4 },
-        // 終止
-        { f: 587.33, d: 0.3,  bass: 220.00 }, { f: 523.25, d: 0.3 },
-        { f: 493.88, d: 0.3 }, { f: 440.00, d: 0.6 }
-    ]);
-
-    // Bach - Minuet in G major (BWV Anh. 114) A 段 8 小節,3/4 拍
-    const BGM_MINUET = Object.freeze([
-        { f: 587.33, d: 0.5,  bass: 196.00 },
-        { f: 392.00, d: 0.25 }, { f: 440.00, d: 0.25 }, { f: 493.88, d: 0.25 }, { f: 523.25, d: 0.25 },
-        { f: 587.33, d: 0.5,  bass: 196.00 },
-        { f: 392.00, d: 0.5 }, { f: 392.00, d: 0.5 },
-        { f: 659.25, d: 0.5,  bass: 261.63 },
-        { f: 523.25, d: 0.25 }, { f: 587.33, d: 0.25 }, { f: 659.25, d: 0.25 }, { f: 739.99, d: 0.25 },
-        { f: 783.99, d: 0.5,  bass: 196.00 },
-        { f: 392.00, d: 0.5 }, { f: 392.00, d: 0.5 },
-        { f: 523.25, d: 0.5,  bass: 261.63 },
-        { f: 587.33, d: 0.25 }, { f: 523.25, d: 0.25 }, { f: 493.88, d: 0.25 }, { f: 440.00, d: 0.25 },
-        { f: 493.88, d: 0.5,  bass: 196.00 },
-        { f: 523.25, d: 0.25 }, { f: 493.88, d: 0.25 }, { f: 440.00, d: 0.25 }, { f: 392.00, d: 0.25 },
-        { f: 369.99, d: 0.5,  bass: 146.83 },
-        { f: 392.00, d: 0.25 }, { f: 440.00, d: 0.25 }, { f: 493.88, d: 0.25 }, { f: 392.00, d: 0.25 },
-        { f: 440.00, d: 1.5,  bass: 146.83 }
-    ]);
-
-    // Pachelbel - Canon in D (8 小節著名和聲循環: D-A-Bm-F#m-G-D-G-A)
-    const BGM_CANON = Object.freeze([
-        { f: 739.99, d: 0.4,  bass: 146.83 }, { f: 659.25, d: 0.4 }, { f: 587.33, d: 0.4 }, { f: 554.37, d: 0.4 },
-        { f: 493.88, d: 0.4,  bass: 220.00 }, { f: 440.00, d: 0.4 }, { f: 493.88, d: 0.4 }, { f: 554.37, d: 0.4 },
-        { f: 587.33, d: 0.4,  bass: 246.94 }, { f: 554.37, d: 0.4 }, { f: 493.88, d: 0.4 }, { f: 440.00, d: 0.4 },
-        { f: 392.00, d: 0.4,  bass: 185.00 }, { f: 369.99, d: 0.4 }, { f: 392.00, d: 0.4 }, { f: 329.63, d: 0.4 },
-        { f: 369.99, d: 0.4,  bass: 196.00 }, { f: 293.66, d: 0.4 }, { f: 329.63, d: 0.4 }, { f: 369.99, d: 0.4 },
-        { f: 392.00, d: 0.4,  bass: 146.83 }, { f: 369.99, d: 0.4 }, { f: 329.63, d: 0.4 }, { f: 293.66, d: 0.4 },
-        { f: 523.25, d: 0.4,  bass: 196.00 }, { f: 493.88, d: 0.4 }, { f: 440.00, d: 0.4 }, { f: 392.00, d: 0.4 },
-        { f: 369.99, d: 0.4,  bass: 220.00 }, { f: 329.63, d: 0.4 }, { f: 369.99, d: 0.4 }, { f: 440.00, d: 0.4 }
-    ]);
-
-    // Mozart - Eine kleine Nachtmusik K.525 第一樂章開頭 (G 大調,4/4 拍)
-    const BGM_NACHTMUSIK = Object.freeze([
-        { f: 392.00, d: 0.4,  bass: 196.00 }, { f: 587.33, d: 0.4 }, { f: 392.00, d: 0.4 }, { f: 587.33, d: 0.4 },
-        { f: 392.00, d: 0.4,  bass: 196.00 }, { f: 587.33, d: 0.4 }, { f: 783.99, d: 0.8 },
-        { f: 587.33, d: 0.2,  bass: 146.83 }, { f: 587.33, d: 0.2 }, { f: 587.33, d: 0.2 }, { f: 493.88, d: 0.6 },
-        { f: 440.00, d: 0.2,  bass: 220.00 }, { f: 523.25, d: 0.2 }, { f: 523.25, d: 0.2 }, { f: 369.99, d: 0.6 },
-        { f: 440.00, d: 0.2,  bass: 220.00 }, { f: 523.25, d: 0.2 }, { f: 523.25, d: 0.2 }, { f: 783.99, d: 0.6 },
-        { f: 392.00, d: 0.2,  bass: 196.00 }, { f: 392.00, d: 0.2 }, { f: 392.00, d: 0.2 }, { f: 392.00, d: 0.2 },
-        { f: 587.33, d: 0.4,  bass: 196.00 }, { f: 587.33, d: 0.4 }, { f: 783.99, d: 0.8 }
-    ]);
-
-    const BGM_TRACKS = Object.freeze([
-        { name: '糖梅仙子之舞 (Tchaikovsky)',     melody: BGM_SUGAR_PLUM },
-        { name: 'Minuet in G (Bach)',             melody: BGM_MINUET    },
-        { name: 'Canon in D (Pachelbel)',         melody: BGM_CANON     },
-        { name: 'Eine kleine Nachtmusik (Mozart)', melody: BGM_NACHTMUSIK }
-    ]);
-    const BGM_TRACK_PER_STAGES = 10;
-
-    // ==========================================
-    // 音訊引擎：Web Audio API 即時合成 (無外部檔案)
-    // ==========================================
-    class AudioEngine {
-        constructor() {
-            this.ctx = null; this.master = null;
-            this.muted = (() => { try { return localStorage.getItem(Config.soundMutedKey) === '1'; } catch (_) { return false; } })();
-            this.bgmTimer = null; this._bgmActive = false; this._currentTrack = 0;
-            this._hapticEnabled = (navigator.vibrate !== undefined);
-        }
-        vibrate(pattern) {
-            if (this._hapticEnabled && !this.muted) navigator.vibrate(pattern);
-        }
-        _ensure() {
-            if (!this.ctx) {
-                const Ctx = window.AudioContext || window.webkitAudioContext;
-                if (!Ctx) return false;
-                this.ctx = new Ctx();
-                this.master = this.ctx.createGain(); this.master.gain.value = 0.5;
-                this.master.connect(this.ctx.destination);
-            }
-            if (this.ctx.state === 'suspended') this.ctx.resume();
-            return true;
-        }
-_tone(freq, dur, type = 'sine', vol = 0.3, attack = 0.005) {
-             if (this.muted || !this._ensure()) return;
-             const t = this.ctx.currentTime;
-             const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
-             osc.type = type; osc.frequency.value = freq;
-             gain.gain.setValueAtTime(0.0001, t);
-             gain.gain.exponentialRampToValueAtTime(vol, t + attack);
-             gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-             osc.connect(gain).connect(this.master);
-             osc.start(t); osc.stop(t + dur + 0.05);
-             osc.onended = () => { osc.disconnect(); gain.disconnect(); };
-         }
-         _glide(f1, f2, dur, type = 'sine', vol = 0.3) {
-             if (this.muted || !this._ensure()) return;
-             const t = this.ctx.currentTime;
-             const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
-             osc.type = type;
-             osc.frequency.setValueAtTime(f1, t);
-             osc.frequency.exponentialRampToValueAtTime(Math.max(f2, 1), t + dur);
-             gain.gain.setValueAtTime(vol, t);
-             gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-             osc.connect(gain).connect(this.master);
-             osc.start(t); osc.stop(t + dur + 0.05);
-             osc.onended = () => { osc.disconnect(); gain.disconnect(); };
-         }
-        click() { this._tone(880, 0.04, 'square', 0.08); }
-        swap() { this._glide(420, 620, 0.1, 'triangle', 0.18); }
-        match() { this._glide(720, 1080, 0.14, 'triangle', 0.2); }
-        combo(n) {
-            const base = 600 + Math.min(n - 1, 8) * 70;
-            for (let i = 0; i < 3; i++) setTimeout(() => this._tone(base + i * 130, 0.09, 'triangle', 0.22), i * 55);
-        }
-        special() {
-            this._glide(1000, 1800, 0.18, 'sine', 0.18);
-            setTimeout(() => this._tone(2200, 0.06, 'sine', 0.14), 90);
-        }
-        explode() { this._glide(380, 60, 0.32, 'sawtooth', 0.26); }
-        levelClear() {
-            [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => setTimeout(() => this._tone(f, 0.22, 'triangle', 0.24), i * 90));
-        }
-        gameOver() {
-            [392, 349.23, 311.13, 261.63].forEach((f, i) => setTimeout(() => this._tone(f, 0.28, 'sawtooth', 0.22), i * 140));
-        }
-        trade() { this._glide(700, 1000, 0.13, 'sine', 0.2); setTimeout(() => this._tone(1300, 0.06, 'sine', 0.17), 70); }
-        fail() { this._tone(180, 0.18, 'square', 0.16); }
-        startBGM(trackIndex = 0) {
-            if (this.muted || this._bgmActive) return;
-            if (!this._ensure()) return;
-            this._currentTrack = ((trackIndex % BGM_TRACKS.length) + BGM_TRACKS.length) % BGM_TRACKS.length;
-            this._bgmActive = true;
-            let i = 0;
-            const playNext = () => {
-                if (!this._bgmActive || this.muted) { this._bgmActive = false; this.bgmTimer = null; return; }
-                const melody = BGM_TRACKS[this._currentTrack].melody;
-                const note = melody[i % melody.length];
-                this._tone(note.f, note.d * 0.92, 'sine', 0.06, 0.04);
-                if (note.bass) this._tone(note.bass, note.d * 1.4, 'triangle', 0.045, 0.03);
-                i++;
-                this.bgmTimer = setTimeout(playNext, note.d * 1000);
-            };
-            playNext();
-        }
-        switchTrack(trackIndex) {
-            const target = ((trackIndex % BGM_TRACKS.length) + BGM_TRACKS.length) % BGM_TRACKS.length;
-            if (this._currentTrack === target && this._bgmActive) return;
-            this.stopBGM();
-            this.startBGM(target);
-        }
-        stopBGM() {
-            this._bgmActive = false;
-            if (this.bgmTimer) { clearTimeout(this.bgmTimer); this.bgmTimer = null; }
-        }
-        toggleMute() {
-            this.muted = !this.muted;
-            try { localStorage.setItem(Config.soundMutedKey, this.muted ? '1' : '0'); } catch (_) {}
-            if (this.muted) this.stopBGM();
-            return this.muted;
-        }
-    }
-
-    // ==========================================
-    // 引擎核心：粒子、盤面、配對、渲染 (完整保留版)
-    // ==========================================
 class ParticleEngine {
-         constructor(canvas, container) {
-             this.canvas = canvas; this.ctx = canvas.getContext('2d'); this.container = container;
-             this._pool = []; this.activeParticles = []; this._rafId = null; this._poolSize = 150;
-             this.resize(); window.addEventListener('resize', () => this.resize());
-             for (let i = 0; i < this._poolSize; i++) this._pool.push({ x: 0, y: 0, vx: 0, vy: 0, life: 0, color: '#fff', size: 2, active: false });
-         }
-         resize() {
-             const dpr = window.devicePixelRatio || 1;
-             const w = this.container.offsetWidth, h = this.container.offsetHeight;
-             this.canvas.width = w * dpr; this.canvas.height = h * dpr;
-             this.canvas.style.width = w + 'px'; this.canvas.style.height = h + 'px';
-             this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-         }
-         _ensureLoop() {
-             if (!this._rafId) this._tick();
-         }
-         _tick() {
-             this._rafId = null;
-             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-             if (this.activeParticles.length > 0) {
-                 const { gravity, decay } = Config.particles;
-                 for (let i = this.activeParticles.length - 1; i >= 0; i--) {
-                     const p = this.activeParticles[i]; p.x += p.vx; p.y += p.vy; p.vy += gravity; p.life -= decay;
-                     if (p.life <= 0) { p.active = false; this.activeParticles.splice(i, 1); continue; }
-                     this.ctx.globalAlpha = p.life; this.ctx.fillStyle = p.color;
-                     this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); this.ctx.fill();
-                 }
-                 this.ctx.globalAlpha = 1;
-                 this._rafId = requestAnimationFrame(() => this._tick());
-             }
-         }
-         emit(x, y, colorName) {
-             if (window.game && !window.game.fxEnabled) return;
-             const color = Config.colorHex[colorName] || colorName;
-             const { count, spread } = Config.particles;
-             for (let i = 0; i < count; i++) {
-                 let p = this._pool.find(p => !p.active);
-                 if (!p) { p = { x: 0, y: 0, vx: 0, vy: 0, life: 0, color: '#fff', size: 2, active: false }; this._pool.push(p); }
-                 p.x = x; p.y = y; p.vx = (Math.random() - 0.5) * spread; p.vy = (Math.random() - 0.5) * spread;
-                 p.life = 1; p.color = color; p.size = Math.random() * 4 + 2; p.active = true;
-                 this.activeParticles.push(p);
-             }
-             this._ensureLoop();
-         }
-     }
-
-    class Board {
-        constructor() { this.data = new Array(Config.width * Config.height); this.fillNoMatches(); }
-        fillNoMatches() {
-            for (let r = 0; r < Config.height; r++) {
-                for (let c = 0; c < Config.width; c++) {
-                    const exclude = [];
-                    if (c >= 2) { const a = this.get(r, c - 1), b = this.get(r, c - 2); if (a && b && a.color === b.color) exclude.push(a.color); }
-                    if (r >= 2) { const a = this.get(r - 1, c), b = this.get(r - 2, c); if (a && b && a.color === b.color) exclude.push(a.color); }
-                    this.set(r, c, this.makeNormal(Utils.randomColorExcept(...exclude)));
-                }
-            }
-        }
-        makeNormal(color = Utils.randomColor()) { return { color, special: SPECIAL.NONE, empty: false, fresh: true }; }
-        makeEmpty() { return { color: '', special: SPECIAL.NONE, empty: true, fresh: false }; }
-        get(r, c) { return Utils.inBounds(r, c) ? this.data[Utils.idx(r, c)] : null; }
-        set(r, c, val) { if (Utils.inBounds(r, c)) this.data[Utils.idx(r, c)] = val; }
-        swap(r1, c1, r2, c2) { const i1 = Utils.idx(r1, c1), i2 = Utils.idx(r2, c2); [this.data[i1], this.data[i2]] = [this.data[i2], this.data[i1]]; }
+  constructor(canvas, container) {
+    this.canvas = canvas; this.ctx = canvas.getContext('2d'); this.container = container;
+    this._pool = []; this.activeParticles = []; this._rafId = null; this._poolSize = 150;
+    this.resize(); window.addEventListener('resize', () => this.resize());
+    for (let i = 0; i < this._poolSize; i++) this._pool.push({ x: 0, y: 0, vx: 0, vy: 0, life: 0, color: '#fff', size: 2, active: false });
+  }
+  resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = this.container.offsetWidth, h = this.container.offsetHeight;
+    this.canvas.width = w * dpr; this.canvas.height = h * dpr;
+    this.canvas.style.width = w + 'px'; this.canvas.style.height = h + 'px';
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  _ensureLoop() { if (!this._rafId) this._tick(); }
+  _tick() {
+    this._rafId = null;
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.activeParticles.length > 0) {
+      const { gravity, decay } = Config.particles;
+      for (let i = this.activeParticles.length - 1; i >= 0; i--) {
+        const p = this.activeParticles[i]; p.x += p.vx; p.y += p.vy; p.vy += gravity; p.life -= decay;
+        if (p.life <= 0) { p.active = false; this.activeParticles.splice(i, 1); continue; }
+        this.ctx.globalAlpha = p.life; this.ctx.fillStyle = p.color;
+        this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); this.ctx.fill();
+      }
+      this.ctx.globalAlpha = 1;
+      this._rafId = requestAnimationFrame(() => this._tick());
     }
-
-    class MatchFinder {
-        constructor(board) { this.board = board; }
-        find(swapPositions = null) {
-            const matched = new Set(); const runs = [];
-            for (let r = 0; r < Config.height; r++) {
-                let runStart = 0;
-                for (let c = 1; c <= Config.width; c++) {
-                    const prev = this.board.get(r, c - 1), cur = c < Config.width ? this.board.get(r, c) : null;
-                    const same = cur && prev && !prev.empty && !cur.empty && cur.color === prev.color;
-                    if (!same) {
-                        if (c - runStart >= 3 && prev && !prev.empty) {
-                            const cells = []; for (let k = runStart; k < c; k++) { cells.push({ r, c: k }); matched.add(Utils.idx(r, k)); }
-                            runs.push({ cells, color: prev.color, dir: 'h' });
-                        }
-                        runStart = c;
-                    }
-                }
-            }
-            for (let c = 0; c < Config.width; c++) {
-                let runStart = 0;
-                for (let r = 1; r <= Config.height; r++) {
-                    const prev = this.board.get(r - 1, c), cur = r < Config.height ? this.board.get(r, c) : null;
-                    const same = cur && prev && !prev.empty && !cur.empty && cur.color === prev.color;
-                    if (!same) {
-                        if (r - runStart >= 3 && prev && !prev.empty) {
-                            const cells = []; for (let k = runStart; k < r; k++) { cells.push({ r: k, c }); matched.add(Utils.idx(k, c)); }
-                            runs.push({ cells, color: prev.color, dir: 'v' });
-                        }
-                        runStart = r;
-                    }
-                }
-            }
-            return { matched, specials: this._planSpecials(runs, swapPositions) };
-        }
-        _planSpecials(runs, swapPositions = null) {
-            const specials = []; const used = new Set();
-            for (let i = 0; i < runs.length; i++) {
-                if (used.has(i)) continue;
-                for (let j = i + 1; j < runs.length; j++) {
-                    if (used.has(j) || runs[i].dir === runs[j].dir || runs[i].color !== runs[j].color) continue;
-                    const intersection = runs[i].cells.find(a => runs[j].cells.some(b => b.r === a.r && b.c === a.c));
-                    if (intersection) { specials.push({ r: intersection.r, c: intersection.c, type: SPECIAL.BOMB, color: runs[i].color }); used.add(i); used.add(j); break; }
-                }
-            }
-            for (let i = 0; i < runs.length; i++) {
-                if (used.has(i)) continue;
-                const run = runs[i], len = run.cells.length;
-                let spawnPos = null;
-                if (swapPositions) {
-                    spawnPos = run.cells.find(cell =>
-                        swapPositions.some(sp => sp.r === cell.r && sp.c === cell.c)
-                    );
-                }
-                if (!spawnPos) spawnPos = run.cells[Math.floor(len / 2)];
-                if (len >= 5) {
-                    specials.push({ r: spawnPos.r, c: spawnPos.c, type: SPECIAL.CROSS, color: run.color });
-                } else if (len === 4) {
-                    specials.push({ r: spawnPos.r, c: spawnPos.c, type: run.dir === 'h' ? SPECIAL.COL : SPECIAL.ROW, color: run.color });
-                }
-              }
-            return specials;
-        }
+  }
+  emit(x, y, colorName) {
+    if (window.game && !window.game.fxEnabled) return;
+    const color = Config.colorHex[colorName] || colorName;
+    const { count, spread } = Config.particles;
+    for (let i = 0; i < count; i++) {
+      let p = this._pool.find(p => !p.active);
+      if (!p) { p = { x: 0, y: 0, vx: 0, vy: 0, life: 0, color: '#fff', size: 2, active: false }; this._pool.push(p); }
+      p.x = x; p.y = y; p.vx = (Math.random() - 0.5) * spread; p.vy = (Math.random() - 0.5) * spread;
+      p.life = 1; p.color = color; p.size = Math.random() * 4 + 2; p.active = true;
+      this.activeParticles.push(p);
     }
+    this._ensureLoop();
+  }
+}
+
+class Board {
+  constructor() { this.data = new Array(Config.width * Config.height); this.fillNoMatches(); }
+  fillNoMatches() {
+    for (let r = 0; r < Config.height; r++) {
+      for (let c = 0; c < Config.width; c++) {
+        const exclude = [];
+        if (c >= 2) { const a = this.get(r, c - 1), b = this.get(r, c - 2); if (a && b && a.color === b.color) exclude.push(a.color); }
+        if (r >= 2) { const a = this.get(r - 1, c), b = this.get(r - 2, c); if (a && b && a.color === b.color) exclude.push(a.color); }
+        this.set(r, c, this.makeNormal(Utils.randomColorExcept(...exclude)));
+      }
+    }
+  }
+  makeNormal(color = Utils.randomColor()) { return { color, special: SPECIAL.NONE, empty: false, fresh: true }; }
+  makeEmpty() { return { color: '', special: SPECIAL.NONE, empty: true, fresh: false }; }
+  get(r, c) { return Utils.inBounds(r, c) ? this.data[Utils.idx(r, c)] : null; }
+  set(r, c, val) { if (Utils.inBounds(r, c)) this.data[Utils.idx(r, c)] = val; }
+  swap(r1, c1, r2, c2) { const i1 = Utils.idx(r1, c1), i2 = Utils.idx(r2, c2); [this.data[i1], this.data[i2]] = [this.data[i2], this.data[i1]]; }
+}
+
+class MatchFinder {
+  constructor(board) { this.board = board; }
+  find(swapPositions = null) {
+    const matched = new Set(); const runs = [];
+    for (let r = 0; r < Config.height; r++) {
+      let runStart = 0;
+      for (let c = 1; c <= Config.width; c++) {
+        const prev = this.board.get(r, c - 1), cur = c < Config.width ? this.board.get(r, c) : null;
+        const same = cur && prev && !prev.empty && !cur.empty && cur.color === prev.color;
+        if (!same) {
+          if (c - runStart >= 3 && prev && !prev.empty) {
+            const cells = []; for (let k = runStart; k < c; k++) { cells.push({ r, c: k }); matched.add(Utils.idx(r, k)); }
+            runs.push({ cells, color: prev.color, dir: 'h' });
+          }
+          runStart = c;
+        }
+      }
+    }
+    for (let c = 0; c < Config.width; c++) {
+      let runStart = 0;
+      for (let r = 1; r <= Config.height; r++) {
+        const prev = this.board.get(r - 1, c), cur = r < Config.height ? this.board.get(r, c) : null;
+        const same = cur && prev && !prev.empty && !cur.empty && cur.color === prev.color;
+        if (!same) {
+          if (r - runStart >= 3 && prev && !prev.empty) {
+            const cells = []; for (let k = runStart; k < r; k++) { cells.push({ r: k, c }); matched.add(Utils.idx(k, c)); }
+            runs.push({ cells, color: prev.color, dir: 'v' });
+          }
+          runStart = r;
+        }
+      }
+    }
+    return { matched, specials: this._planSpecials(runs, swapPositions) };
+  }
+  _planSpecials(runs, swapPositions = null) {
+    const specials = []; const used = new Set();
+    for (let i = 0; i < runs.length; i++) {
+      if (used.has(i)) continue;
+      for (let j = i + 1; j < runs.length; j++) {
+        if (used.has(j) || runs[i].dir === runs[j].dir || runs[i].color !== runs[j].color) continue;
+        const intersection = runs[i].cells.find(a => runs[j].cells.some(b => b.r === a.r && b.c === a.c));
+        if (intersection) { specials.push({ r: intersection.r, c: intersection.c, type: SPECIAL.BOMB, color: runs[i].color }); used.add(i); used.add(j); break; }
+      }
+    }
+    for (let i = 0; i < runs.length; i++) {
+      if (used.has(i)) continue;
+      const run = runs[i], len = run.cells.length;
+      let spawnPos = null;
+      if (swapPositions) spawnPos = run.cells.find(cell => swapPositions.some(sp => sp.r === cell.r && sp.c === cell.c));
+      if (!spawnPos) spawnPos = run.cells[Math.floor(len / 2)];
+      if (len >= 5) specials.push({ r: spawnPos.r, c: spawnPos.c, type: SPECIAL.CROSS, color: run.color });
+      else if (len === 4) specials.push({ r: spawnPos.r, c: spawnPos.c, type: run.dir === 'h' ? SPECIAL.COL : SPECIAL.ROW, color: run.color });
+    }
+    return specials;
+  }
+}
 
 class Renderer {
-        constructor(board, gridEl) {
-            this.board = board; this.gridEl = gridEl; this.elements = [];
-            this.gridEl.innerHTML = '';
-            for (let i = 0; i < Config.width * Config.height; i++) {
-                const el = document.createElement('div'); el.className = 'candy'; el.dataset.idx = i;
-                this.gridEl.appendChild(el); this.elements.push(el);
-            }
-            this._glowPhase = 0;
-            this._glowRafId = null;
-            this._startGlowAnimation();
-        }
-        elAt(r, c) { return this.elements[Utils.idx(r, c)]; }
-        _startGlowAnimation() {
-            const animate = () => {
-                this._glowPhase = (this._glowPhase + 0.05) % (Math.PI * 2);
-                for (let i = 0; i < this.elements.length; i++) {
-                    const el = this.elements[i];
-                    if (el.classList.contains('bomb') || el.classList.contains('cross') || el.classList.contains('row') || el.classList.contains('col')) {
-                        const intensity = (Math.sin(this._glowPhase) + 1) / 2;
-                        el.style.boxShadow = `inset -5px -5px 12px rgba(0, 0, 0, 0.22), inset 5px 5px 12px rgba(255, 255, 255, 0.75), 0 0 ${8 + intensity * 12}px ${2 + intensity * 4}px rgba(255, 255, 255, ${0.5 + intensity * 0.5})`;
-                    }
-                }
-                this._glowRafId = requestAnimationFrame(animate);
-            };
-            animate();
-        }
-        stopGlowAnimation() {
-            if (this._glowRafId) { cancelAnimationFrame(this._glowRafId); this._glowRafId = null; }
-        }
-render({ keepSelected = -1 } = {}) {
-             for (let i = 0; i < this.elements.length; i++) {
-                 const cell = this.board.data[i], el = this.elements[i];
-                 el.className = 'candy'; el.innerHTML = ''; el.style.boxShadow = '';
-                 if (cell.empty) { el.classList.add('empty'); continue; }
-                 el.classList.add(cell.color);
-if (cell.special !== SPECIAL.NONE) {
-                      el.classList.add(cell.special);
-                      if (cell.special === SPECIAL.BOMB) el.innerHTML = '🍬';
-                      else if (cell.special === SPECIAL.CROSS) el.innerHTML = '🌟';
-                  }
-                  // 套用 fresh 特效
-                  if (cell.fresh) { el.classList.add('fresh'); cell.fresh = false; }
-                  if (i === keepSelected) el.classList.add('selected');
-             }
-          }
+  constructor(board, gridEl) {
+    this.board = board; this.gridEl = gridEl; this.elements = [];
+    this.gridEl.innerHTML = '';
+    for (let i = 0; i < Config.width * Config.height; i++) {
+      const el = document.createElement('div'); el.className = 'candy'; el.dataset.idx = i;
+      this.gridEl.appendChild(el); this.elements.push(el);
     }
-
-    // ==========================================
-    // 遊戲主體 Controller
-    // ==========================================
-    class Game {
-        constructor() {
-            this.fxEnabled = true;
-            this.tradeMovesPool = 0; // 交易市場累積步數池
-            this._tradeCooldown = 0; // 交易冷卻回合數
-            this.audio = new AudioEngine();
-
-            this.board = new Board(); this.matcher = new MatchFinder(this.board);
-            this.gridEl = document.getElementById('grid'); this.containerEl = document.getElementById('game-container');
-            this.renderer = new Renderer(this.board, this.gridEl); this.particles = new ParticleEngine(document.getElementById('particles'), this.containerEl);
-
-            this.scoreEl = document.getElementById('score'); this.centerLabel = document.getElementById('center-label');
-            this.centerVal = document.getElementById('center-val'); this.limitLabel = document.getElementById('limit-label');
-            this.limitVal = document.getElementById('limit-val'); this.comboBanner = document.getElementById('comboBanner');
-
-            this.tradePost = document.getElementById('trade-post'); this.inventoryPanel = document.getElementById('inventory-panel');
-            this.menuOverlay = document.getElementById('menu-overlay'); this.resultOverlay = document.getElementById('result-overlay');
-            this.rewardOverlay = document.getElementById('reward-overlay');
-            this.pauseBtn = document.getElementById('btn-pause'); this.resumeBtn = document.getElementById('btn-resume');
-            this.resultBestBadge = document.getElementById('result-best-badge');
-            this.tradeBtns = Array.from(document.querySelectorAll('.trade-btn'));
-            this.tradePoolEl = document.getElementById('trade-moves-pool');
-
-this.state = GAME_STATE.MENU; this.currentMode = 'ENDLESS';
-             this.score = 0; this.combo = 0; this._isProcessing = false; this.selectedIndex = -1;
-             this._doubleScoreActive = 0;
-
-            this.timeLeft = 0; this.timerInterval = null; this.currentStageLevel = 1;
-            this.movesLeft = 0; this.targetScore = 0;
-            this.inventory = { DETONATE: 0, EXTRA_MOVES: 0, DOUBLE_SCORE: 0 };
-            this.bestScore = parseInt(localStorage.getItem(Config.bestScoreKey), 10) || 0;
-            this.bestScoreAtStart = this.bestScore;
-            this.totalStars = parseInt(localStorage.getItem(Config.totalStarsKey), 10) || 0;
-            this._bgmStartOffset = 0; // 每次開局隨機抽一首當起點,後續循環從這裡接著走
-
-            // 卡關提示 + 里程碑追蹤
-            this._hintTimer = null; this._currentHint = null;
-            this._lastMilestoneIdx = -1;
-            this.milestoneBanner = document.getElementById('milestoneBanner');
-            this.menuTotalStarsEl = document.getElementById('menu-total-stars');
-            this._syncMenuStars();
-
-            this._setupLeaveGuard(); this._bindInputs(); this._bindGlobalClickSfx();
-            this._syncSoundButton();
-            this.renderer.render(); this._initialResolve();
+    this._glowPhase = 0; this._glowRafId = null; this._startGlowAnimation();
+  }
+  elAt(r, c) { return this.elements[Utils.idx(r, c)]; }
+  _startGlowAnimation() {
+    const animate = () => {
+      this._glowPhase = (this._glowPhase + 0.05) % (Math.PI * 2);
+      for (let i = 0; i < this.elements.length; i++) {
+        const el = this.elements[i];
+        if (el.classList.contains('bomb') || el.classList.contains('cross') || el.classList.contains('row') || el.classList.contains('col')) {
+          const intensity = (Math.sin(this._glowPhase) + 1) / 2;
+          el.style.boxShadow = `inset 0 -5px 9px rgba(0,0,0,0.30), inset 0 4px 7px rgba(255,255,255,0.45), 0 0 ${8 + intensity * 12}px ${2 + intensity * 4}px rgba(255,255,255,${0.5 + intensity * 0.5})`;
         }
-
-        get isProcessing() { return this._isProcessing; }
-        set isProcessing(v) {
-            this._isProcessing = v;
-            if (this.containerEl) this.containerEl.classList.toggle('processing', !!v);
-            if (this.tradeBtns) this._updateTradeUI();
-        }
-
-        toggleFX() {
-            this.fxEnabled = !this.fxEnabled;
-            const btn = document.getElementById('btn-fx-toggle');
-            if (this.fxEnabled) {
-                document.body.classList.remove('disable-fx');
-                btn.textContent = '✨ 特效'; btn.classList.remove('off');
-            } else {
-                document.body.classList.add('disable-fx');
-                btn.textContent = '🚫 特效'; btn.classList.add('off');
-            }
-        }
-
-        toggleSound() {
-            const muted = this.audio.toggleMute();
-            this._syncSoundButton();
-            if (!muted && this.state === GAME_STATE.PLAYING) this.audio.startBGM(this._bgmTrackForCurrentMode());
-        }
-
-        _bgmTrackForLevel(level) {
-            const cycle = Math.floor((Math.max(level, 1) - 1) / BGM_TRACK_PER_STAGES);
-            return (this._bgmStartOffset + cycle) % BGM_TRACKS.length;
-        }
-        _bgmTrackForCurrentMode() {
-            return this.currentMode === 'STAGE' ? this._bgmTrackForLevel(this.currentStageLevel) : this._bgmStartOffset;
-        }
-
-        // ============= 卡關提示 =============
-        _resetHintTimer() {
-            this._clearHintVisual();
-            if (this._hintTimer) clearTimeout(this._hintTimer);
-            this._hintTimer = null;
-            if (this.state !== GAME_STATE.PLAYING) return;
-            this._hintTimer = setTimeout(() => this._tryShowHint(), Config.hintIdleMs);
-        }
-        _killHint() {
-            this._clearHintVisual();
-            if (this._hintTimer) { clearTimeout(this._hintTimer); this._hintTimer = null; }
-        }
-        _clearHintVisual() {
-            if (!this._currentHint) return;
-            const [r1, c1, r2, c2] = this._currentHint;
-            const e1 = this.renderer.elAt(r1, c1), e2 = this.renderer.elAt(r2, c2);
-            if (e1) e1.classList.remove('hint');
-            if (e2) e2.classList.remove('hint');
-            this._currentHint = null;
-        }
-        _tryShowHint() {
-            if (this.state !== GAME_STATE.PLAYING) return;
-            if (this._isProcessing) {
-                this._hintTimer = setTimeout(() => this._tryShowHint(), 1500);
-                return;
-            }
-            const move = this._findPossibleMove();
-            if (move) {
-                const [r1, c1, r2, c2] = move;
-                const el1 = this.renderer.elAt(r1, c1), el2 = this.renderer.elAt(r2, c2);
-                el1?.classList.add('hint');
-                el2?.classList.add('hint');
-                this._currentHint = move;
-                // 3 秒後自動彈跳提醒
-                setTimeout(() => {
-                    if (this._currentHint === move && this.state === GAME_STATE.PLAYING) {
-                        el1?.classList.add('hint-bounce');
-                        el2?.classList.add('hint-bounce');
-                        setTimeout(() => { el1?.classList.remove('hint-bounce'); el2?.classList.remove('hint-bounce'); }, 1200);
-                    }
-                }, 3000);
-            } else {
-                // 整盤無解 → 自動洗牌
-                this.isProcessing = true;
-                this._executePropEffect('SHUFFLE');
-            }
-        }
-        _findPossibleMove() {
-            for (let r = 0; r < Config.height; r++) {
-                for (let c = 0; c < Config.width; c++) {
-                    // 嘗試與右鄰交換
-                    if (c + 1 < Config.width) {
-                        this.board.swap(r, c, r, c + 1);
-                        const hasMatch = this.matcher.find().matched.size > 0;
-                        this.board.swap(r, c, r, c + 1); // 立刻復原
-                        if (hasMatch) return [r, c, r, c + 1];
-                    }
-                    // 嘗試與下鄰交換
-                    if (r + 1 < Config.height) {
-                        this.board.swap(r, c, r + 1, c);
-                        const hasMatch = this.matcher.find().matched.size > 0;
-                        this.board.swap(r, c, r + 1, c);
-                        if (hasMatch) return [r, c, r + 1, c];
-                    }
-                }
-            }
-            return null;
-        }
-
-        // ============= Combo 等級 + 里程碑 =============
-        _comboLabel(n) { return COMBO_LABELS[Math.min(n, COMBO_LABELS.length - 1)] || 'LEGENDARY!'; }
-        _comboTier(n) { return Math.min(n, 6); }
-
-        _checkMilestone() {
-            if (this.currentMode !== 'ENDLESS' && this.currentMode !== 'TIME') return;
-            for (let i = 0; i < Config.endlessMilestones.length; i++) {
-                if (this.score >= Config.endlessMilestones[i] && i > this._lastMilestoneIdx) {
-                    this._lastMilestoneIdx = i;
-                    this._triggerMilestone(Config.endlessMilestones[i]);
-                    break;
-                }
-            }
-        }
-        _triggerMilestone(value) {
-            this.milestoneBanner.textContent = `🎉 ${value.toLocaleString()}!`;
-            this.milestoneBanner.classList.remove('show');
-            Utils.reflow(this.milestoneBanner);
-            this.milestoneBanner.classList.add('show');
-            this.audio.levelClear();
-            this._playFxFlash('rgba(255, 213, 79, 0.4)');
-        }
-
-// ============= 星等 =============
-         // 改用「分數超標比例」而非「剩餘步數比例」，更直觀反映玩家表現
-         _calcStars(score, target) {
-             if (target <= 0) return 3;
-             const ratio = score / target;
-             if (ratio >= 2.0) return 3;   // 雙倍分 → 3 星
-             if (ratio >= 1.4) return 2;   // 超標 40% → 2 星
-             return 1;                     // 低空飛過 → 1 星
-         }
-        _commitStars(stars) {
-            this.totalStars += stars;
-            try { localStorage.setItem(Config.totalStarsKey, String(this.totalStars)); } catch (_) {}
-            this._syncMenuStars();
-        }
-        _syncMenuStars() {
-            if (this.menuTotalStarsEl) this.menuTotalStarsEl.textContent = this.totalStars;
-        }
-        _renderRewardStars(stars) {
-            const el = document.getElementById('reward-stars');
-            el.innerHTML = '';
-            for (let i = 0; i < 3; i++) {
-                const s = document.createElement('span');
-                s.textContent = '⭐';
-                if (i >= stars) s.classList.add('empty');
-                el.appendChild(s);
-            }
-        }
-
-        _targetScoreForLevel(level) { return Math.floor(500 + 400 * Math.log2(level)); }
-
-        _applyTheme(level) {
-            const t = Themes[((level - 1) % Themes.length + Themes.length) % Themes.length];
-            const root = document.documentElement;
-            root.style.setProperty('--bg-grad', t.bg);
-            root.style.setProperty('--blob1', t.blob1);
-            root.style.setProperty('--blob2', t.blob2);
-        }
-
-        _syncSoundButton() {
-            const btn = document.getElementById('btn-sound-toggle');
-            if (this.audio.muted) { btn.textContent = '🔇 聲音'; btn.classList.add('off'); }
-            else { btn.textContent = '🔊 聲音'; btn.classList.remove('off'); }
-        }
-
-        _bindGlobalClickSfx() {
-            document.addEventListener('click', e => {
-                const tgt = e.target.closest('button:not(:disabled), .reward-card');
-                if (tgt) this.audio.click();
-            }, true);
-        }
-
-        async _playFxFloatingText(text, targetEl) {
-            if (!this.fxEnabled) return;
-            const el = document.createElement('div'); el.className = 'fx-floating-text'; el.textContent = text;
-            const rect = targetEl.getBoundingClientRect();
-            el.style.left = `${rect.left + rect.width / 2}px`; el.style.top = `${rect.top}px`;
-            document.body.appendChild(el); setTimeout(() => el.remove(), 1200);
-        }
-
-        async _playFxFlash(color = 'rgba(255,255,255,0.8)') {
-            if (!this.fxEnabled) return;
-            const overlay = document.createElement('div'); overlay.className = 'fx-flash-overlay'; overlay.style.background = color;
-            document.body.appendChild(overlay); setTimeout(() => overlay.remove(), 500);
-        }
-
-        _setupLeaveGuard() { window.addEventListener('beforeunload', (e) => { if (this.state === GAME_STATE.PLAYING || this.state === GAME_STATE.REWARD) { e.preventDefault(); e.returnValue = ''; } }); }
-        
-        async _initialResolve() { const { matched } = this.matcher.find(); if (matched.size > 0) { this.isProcessing = true; await this._gameLoop(true); } }
-
-        showMenu() {
-            this.state = GAME_STATE.MENU; this.menuOverlay.classList.add('active'); this.resultOverlay.classList.remove('active');
-            this.tradePost.classList.remove('active'); this.inventoryPanel.classList.remove('active');
-            this.pauseBtn.style.display = 'none'; this.resumeBtn.style.display = 'none';
-            this.resultBestBadge.classList.remove('show');
-            if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
-            this.audio.stopBGM();
-            this._applyTheme(1);
-            this._killHint();
-            this._syncMenuStars();
-        }
-
-        openPauseMenu() {
-            if (this.state !== GAME_STATE.PLAYING || this.isProcessing) return;
-            this.state = GAME_STATE.PAUSED;
-            this.menuOverlay.classList.add('active');
-            this.resumeBtn.style.display = 'block';
-            if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
-            this.audio.stopBGM();
-            this._killHint();
-        }
-
-        resumeGame() {
-            if (this.state !== GAME_STATE.PAUSED) return;
-            this.menuOverlay.classList.remove('active');
-            this.resumeBtn.style.display = 'none';
-            this.state = GAME_STATE.PLAYING;
-            if (this.currentMode === 'TIME') this._startTimeTimer();
-            if (!this.audio.muted) this.audio.startBGM(this._bgmTrackForCurrentMode());
-            this._resetHintTimer();
-        }
-
-        _startTimeTimer() {
-            if (this.timerInterval) clearInterval(this.timerInterval);
-            this.timerInterval = setInterval(() => {
-                if (this.state !== GAME_STATE.PLAYING) return;
-                this.timeLeft--; this.limitVal.textContent = this.timeLeft + 's';
-                if (this.timeLeft <= 0) this._endGame('TIME_UP');
-            }, 1000);
-        }
-
-        startMode(mode) {
-            this.currentMode = mode; this.menuOverlay.classList.remove('active'); this.resultOverlay.classList.remove('active');
-            this.resumeBtn.style.display = 'none';
-            this.resultBestBadge.classList.remove('show');
-            this.pauseBtn.style.display = 'inline-block';
-
-if (mode === 'STAGE') {
-                 this.currentStageLevel = 1; this.movesLeft = Config.stageInitialMoves; this.score = 0; this.targetScore = this._targetScoreForLevel(1);
-                this.inventory = { DETONATE: 0, EXTRA_MOVES: 0, DOUBLE_SCORE: 0 }; this._updateInventoryUI();
-                this.tradeMovesPool = 0; // 開局餘額為0
-
-                this.tradePost.classList.add('active'); this.inventoryPanel.classList.add('active');
-                this._initLevel(true);
-            } else {
-                this.tradePost.classList.remove('active'); this.inventoryPanel.classList.remove('active');
-                this._initLevel(true);
-            }
-            this.bestScoreAtStart = this.bestScore;
-            this._lastMilestoneIdx = -1;
-            this._bgmStartOffset = Math.floor(Math.random() * BGM_TRACKS.length);
-            this._applyTheme(mode === 'STAGE' ? this.currentStageLevel : 1);
-            if (!this.audio.muted) this.audio.startBGM(this._bgmTrackForCurrentMode());
-        }
-
-restartCurrentMode() {
-             this.resultOverlay.classList.remove('active');
-             if (this.currentMode === 'STAGE') {
-                 this.score = 0;
-                 this.movesLeft = Config.stageInitialMoves;
-                 this.targetScore = this._targetScoreForLevel(this.currentStageLevel);
-                 this.tradeMovesPool = 0;
-                 this.inventory = { DETONATE: 0, EXTRA_MOVES: 0, DOUBLE_SCORE: 0 };
-                 this._updateInventoryUI();
-                 this._applyTheme(this.currentStageLevel);
-                 if (!this.audio.muted) this.audio.switchTrack(this._bgmTrackForLevel(this.currentStageLevel));
-                 this._initLevel(true);
-             } else {
-                 this.startMode(this.currentMode);
-             }
-         }
-
-        _initLevel(resetBoard = false) {
-            if (this.timerInterval) clearInterval(this.timerInterval);
-            if (resetBoard) { this.board = new Board(); this.matcher = new MatchFinder(this.board); this.renderer.board = this.board; if (this.currentMode !== 'STAGE') this.score = 0; }
-            this.combo = 0; this.isProcessing = false; this.selectedIndex = -1; this.state = GAME_STATE.PLAYING;
-
-            if (this.currentMode === 'ENDLESS') {
-                this.centerLabel.textContent = 'BEST'; this.centerVal.textContent = this.bestScore; this.limitLabel.textContent = 'MODE'; this.limitVal.textContent = '∞';
-            } else if (this.currentMode === 'TIME') {
-                this.timeLeft = 60; this.centerLabel.textContent = 'BEST'; this.centerVal.textContent = this.bestScore; this.limitLabel.textContent = 'TIME'; this.limitVal.textContent = this.timeLeft + 's';
-                this._startTimeTimer();
-            } else if (this.currentMode === 'STAGE') {
-                this.centerLabel.textContent = `LV ${this.currentStageLevel} GOAL`; this.centerVal.textContent = this.targetScore;
-                this.limitLabel.textContent = 'MOVES'; this.limitVal.textContent = this.movesLeft; this.scoreEl.textContent = this.score;
-                this._initialMoves = this.movesLeft;
-            }
-            this.renderer.render(); this._updateHUD(); if (resetBoard) this._initialResolve();
-            this._resetHintTimer();
-        }
-
-// ======================= 交易與背包系統 =======================
-         async tradeItem(type, cost) {
-             if (this.state !== GAME_STATE.PLAYING || this.isProcessing || this.currentMode !== 'STAGE') return;
-             const actualCost = Config.tradeCosts[type] ?? cost;
-             // 檢查累積餘額
-             if (this.tradeMovesPool < actualCost) {
-                 this.tradePoolEl.style.color = '#ffeb3b'; setTimeout(() => this.tradePoolEl.style.color = '', 300);
-                 this.audio.fail();
-                 return;
-             }
-
-             this.isProcessing = true;
-             this.tradeMovesPool -= actualCost; // 只扣除餘額，不扣當前步數
-             this._tradeCooldown = Config.tradeCooldown; // 設置冷卻
-             this._updateHUD();
-             this.audio.trade();
-             await this._executePropEffect(type);
-         }
-
-         _updateInventoryUI() {
-             const keys = { DETONATE: 'detonate', EXTRA_MOVES: 'moves', DOUBLE_SCORE: 'double-score' };
-             for (const [key, id] of Object.entries(keys)) {
-                 const count = this.inventory[key]; document.getElementById(`inv-${id}`).textContent = count; document.getElementById(`btn-inv-${id}`).disabled = count === 0;
-             }
-         }
-
-        _updateTradeUI() {
-            for (const btn of this.tradeBtns) {
-                const cost = parseInt(btn.dataset.cost, 10) || 0;
-                const onCooldown = this._tradeCooldown > 0;
-                btn.disabled = (this.currentMode !== 'STAGE' || this.state !== GAME_STATE.PLAYING || this._isProcessing || this.tradeMovesPool < cost || onCooldown);
-                btn.title = onCooldown ? `冷卻中 (${this._tradeCooldown} 回合)` : '';
-            }
-        }
-
-        async useInventory(type) {
-            if (this.state !== GAME_STATE.PLAYING || this.isProcessing || this.inventory[type] <= 0) return;
-            this.inventory[type]--; this._updateInventoryUI(); this.isProcessing = true;
-            this.audio.trade();
-            await this._executePropEffect(type);
-        }
-
-async _executePropEffect(type) {
-             const handler = this._propEffects[type];
-             if (handler) await handler.call(this);
-             this._checkWinLossCondition(); if (this.state === GAME_STATE.PLAYING) this.isProcessing = false;
-         }
-
-         _getUniqueRandomIndices(count) {
-             const indices = new Set();
-             while (indices.size < count) indices.add(Math.floor(Math.random() * Config.boardCells));
-             return indices;
-         }
-
-         get _propEffects() {
-             if (!this.__propEffects) this.__propEffects = {
-                 EXTRA_MOVES: async function() {
-                     const added = 3; this.movesLeft += added; this.limitVal.textContent = this.movesLeft;
-                     this._playFxFloatingText(`+${added} MOVES`, this.limitVal);
-                     this.audio.special();
-                     this.limitVal.style.color = '#00e676'; setTimeout(() => this.limitVal.style.color = '', 500);
-                 },
-                 SHUFFLE: async function() {
-                     this.audio.special();
-                     if (this.fxEnabled) { this.gridEl.classList.add('fx-shuffle-out'); await Utils.delay(250); }
-                     const arr = this.board.data.filter(c => !c.empty); arr.sort(() => Math.random() - 0.5);
-                     let idx = 0; for (let i = 0; i < this.board.data.length; i++) { if (!this.board.data[i].empty) { this.board.data[i] = arr[idx++]; this.board.data[i].fresh = true; } }
-                     this.renderer.render();
-                     if (this.fxEnabled) { this.gridEl.classList.remove('fx-shuffle-out'); this.gridEl.classList.add('fx-shuffle-in'); await Utils.delay(250); this.gridEl.classList.remove('fx-shuffle-in'); }
-                     await Utils.delay(Config.timing.drop); await this._gameLoop();
-                 },
-                 CLEAR: async function() {
-                     this._playFxFlash('rgba(255, 235, 59, 0.5)');
-                     this.audio.special();
-                     const indices = this._getUniqueRandomIndices(5);
-                     await this._clearByIndices(indices); await this._dropCandies(); await this._gameLoop();
-                 },
-                 RANDOM_CLEAR: async function() {
-                     this._playFxFlash('rgba(255, 235, 59, 0.5)');
-                     this.audio.special();
-                     const indices = this._getUniqueRandomIndices(5);
-                     await this._clearByIndices(indices); await this._dropCandies(); await this._gameLoop();
-                 },
-                 DETONATE: async function() {
-                     this._playFxFlash('rgba(244, 67, 54, 0.5)');
-                     this.audio.explode();
-                     const specials = new Set(); for (let i = 0; i < this.board.data.length; i++) { if (this.board.data[i].special !== SPECIAL.NONE) specials.add(i); }
-                     await this._clearByIndices(specials.size > 0 ? specials : new Set([Math.floor(Math.random() * Config.boardCells)])); await this._dropCandies(); await this._gameLoop();
-                 },
-                 SPAWN_BOMB: async function() {
-                     const candidates = [];
-                     for (let i = 0; i < this.board.data.length; i++) {
-                         if (!this.board.data[i].empty && this.board.data[i].special === SPECIAL.NONE) candidates.push(i);
-                     }
-                     const idx = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : Math.floor(Math.random() * Config.boardCells);
-                     let color = Utils.randomColor();
-                     this.board.data[idx] = { color, special: SPECIAL.BOMB, empty: false, fresh: true };
-                     this.renderer.render();
-                     this.audio.special();
-                     if (this.fxEnabled) {
-                         const elRect = this.renderer.elAt(...Utils.rcOf(idx)).getBoundingClientRect(), conRect = this.containerEl.getBoundingClientRect();
-                         for(let i=0; i<8; i++) this.particles.emit(elRect.left - conRect.left + elRect.width / 2, elRect.top - conRect.top + elRect.height / 2, color);
-                     }
-},
-                   DOUBLE_SCORE: async function() {
-                      this._playFxFlash('rgba(255, 215, 0, 0.6)');
-                      this.audio.special();
-                      this._playFxFloatingText('2x SCORE!', this.scoreEl);
-                      this._doubleScoreActive = 5;
-                  }
-              };
-             return this.__propEffects;
-         }
-
-        // ======================= 過關邏輯 =======================
-        _checkWinLossCondition() {
-            if (this.state !== GAME_STATE.PLAYING) return;
-            if (this.currentMode === 'STAGE') {
-                if (this.score >= this.targetScore) {
-                    this.state = GAME_STATE.REWARD; this.isProcessing = true;
-                    this.audio.levelClear();
-                    this._prepareRewardModal();
-                    setTimeout(() => { this.rewardOverlay.classList.add('active'); }, 500);
-                } else if (this.movesLeft <= 0) { this._endGame('OUT_OF_MOVES'); }
-            }
-        }
-
-        _prepareRewardModal() {
-            const cleared = this.currentStageLevel;
-            const isBonus = cleared % REWARD_EVERY === 0;
-            const bonusEl = document.getElementById('reward-bonus');
-            const hintEl = document.getElementById('reward-next-hint');
-            const titleEl = document.getElementById('reward-title');
-
-titleEl.textContent = `LV ${cleared} Clear! 🎉`;
-
-             // 計算 + 累計星等
-             const stars = this._calcStars(this.score, this.targetScore);
-             this._renderRewardStars(stars);
-             this._commitStars(stars);
-
-             if (isBonus) {
-                 const type = ItemKeys[Math.floor(Math.random() * ItemKeys.length)];
-                 this.inventory[type]++; this._updateInventoryUI();
-                 document.getElementById('reward-bonus-name').textContent = ItemInfo[type].name;
-                 document.getElementById('reward-bonus-desc').textContent = ItemInfo[type].desc;
-                 bonusEl.style.display = 'block';
-                 bonusEl.style.animation = 'none'; Utils.reflow(bonusEl); bonusEl.style.animation = '';
-                 setTimeout(() => this.audio.special(), 350);
-             } else {
-                 bonusEl.style.display = 'none';
-             }
-
-             const nextBonusLevel = Math.ceil((cleared + 1) / REWARD_EVERY) * REWARD_EVERY;
-             const gap = nextBonusLevel - cleared;
-             hintEl.textContent = `下次獎勵：第 ${nextBonusLevel} 關 (再 ${gap} 關)`;
-         }
-
-         claimReward() {
-             this.rewardOverlay.classList.remove('active');
-
-             // 核心：剩餘步數的 50% 存入交易所餘額(含上限保護)
-             const convertedMoves = Math.floor(this.movesLeft * Config.bonusConversionRate);
-             this.tradeMovesPool = Math.min(this.tradeMovesPool + convertedMoves, Config.maxTradePool);
-             this._tradeCooldown = 0; // 重置交易冷卻
-
-             // 準備下一關
-             this.currentStageLevel++;
-             this.targetScore = this._targetScoreForLevel(this.currentStageLevel);
-             this.score = 0;
-             this.movesLeft = Config.stageInitialMoves;
-
-            this.state = GAME_STATE.PLAYING; this.isProcessing = false;
-            this._updateHUD();
-            this.centerLabel.textContent = `LV ${this.currentStageLevel} GOAL`;
-            this.centerVal.textContent = this.targetScore;
-            this._applyTheme(this.currentStageLevel);
-            if (!this.audio.muted) this.audio.switchTrack(this._bgmTrackForLevel(this.currentStageLevel));
-            this._resetHintTimer();
-        }
-
-        _endGame(reason) {
-            this.state = GAME_STATE.GAME_OVER; this.isProcessing = true;
-            if (this.timerInterval) clearInterval(this.timerInterval);
-            this.audio.gameOver();
-            this.audio.stopBGM();
-            this.pauseBtn.style.display = 'none';
-            this._killHint();
-
-            const titleEl = document.getElementById('result-title'), descEl = document.getElementById('result-desc');
-            const isNewBest = (this.currentMode === 'ENDLESS' || this.currentMode === 'TIME') && this.score > 0 && this.score > this.bestScoreAtStart;
-
-            if (reason === 'OUT_OF_MOVES') {
-                titleEl.textContent = `LV ${this.currentStageLevel} 步數用盡 😢`;
-                descEl.innerHTML = `Score: <b>${this.score}</b> / ${this.targetScore}`;
-            } else if (reason === 'TIME_UP') {
-                titleEl.textContent = "時間到！⏰";
-                descEl.innerHTML = `Final Score: <b>${this.score}</b>`;
-            } else {
-                titleEl.textContent = 'Game Over';
-                descEl.innerHTML = `Score: <b>${this.score}</b>`;
-            }
-
-            this.resultBestBadge.classList.toggle('show', isNewBest);
-            setTimeout(() => { this.resultOverlay.classList.add('active'); }, 800);
-        }
-
-async _triggerBombAt(r, c) {
-             this._clearSelection(); this.isProcessing = true; this.combo = 1;
-             this._consumeMove(); await this._detonateAt(r, c); await this._dropCandies(); await this._gameLoop();
-         }
-
-        _bindInputs() {
-            let startX = 0, startY = 0, downIdx = -1, startTime = 0, lastTapIdx = -1, lastTapTime = 0;
-            this.gridEl.addEventListener('pointerdown', e => {
-                if (this.state !== GAME_STATE.PLAYING || this.isProcessing) return;
-                const target = e.target.closest('.candy'); if (!target || target.classList.contains('empty')) return;
-                e.preventDefault(); startX = e.clientX; startY = e.clientY; startTime = Date.now(); downIdx = parseInt(target.dataset.idx, 10);
-                this._resetHintTimer();
-            });
-            const handleUp = async e => {
-                if (downIdx === -1 || this.state !== GAME_STATE.PLAYING || this.isProcessing) { downIdx = -1; return; }
-                const idx = downIdx; downIdx = -1; const [r, c] = Utils.rcOf(idx);
-                const dx = e.clientX - startX, dy = e.clientY - startY, duration = Date.now() - startTime;
-                let isSwipe = Math.abs(dx) > Config.swipeThreshold || Math.abs(dy) > Config.swipeThreshold;
-                if (duration < 250 && Math.max(Math.abs(dx), Math.abs(dy)) < 35) isSwipe = false; 
-
-                if (isSwipe) {
-                    this._clearSelection(); let r2 = r, c2 = c;
-                    if (Math.abs(dx) > Math.abs(dy)) c2 += dx > 0 ? 1 : -1; else r2 += dy > 0 ? 1 : -1;
-                    if (Utils.inBounds(r2, c2)) await this._attemptSwap(r, c, r2, c2); return;
-                }
-
-                const now = Date.now(), isDoubleTap = (idx === lastTapIdx && (now - lastTapTime) < 400);
-                lastTapIdx = idx; lastTapTime = now; const cell = this.board.get(r, c);
-
-                if (this.selectedIndex === idx || isDoubleTap) {
-                    this._clearSelection(); if (cell && cell.special !== SPECIAL.NONE) await this._triggerBombAt(r, c);
-                } else {
-                    const prev = this.selectedIndex; this._clearSelection();
-                    if (prev !== -1) { const [pr, pc] = Utils.rcOf(prev); if (Math.abs(pr - r) + Math.abs(pc - c) === 1) { await this._attemptSwap(pr, pc, r, c); return; } }
-                    this.selectedIndex = idx; this.renderer.render({ keepSelected: idx });
-                }
-            };
-            window.addEventListener('pointerup', handleUp); window.addEventListener('pointercancel', () => { downIdx = -1; });
-        }
-
-        _clearSelection() { if (this.selectedIndex !== -1) { this.selectedIndex = -1; this.renderer.render(); } }
-        _consumeMove(amount = 1) {
-            if (this.currentMode === 'STAGE' && this.state === GAME_STATE.PLAYING) {
-                this.movesLeft -= amount; this.limitVal.textContent = this.movesLeft;
-                if (this._tradeCooldown > 0) { this._tradeCooldown--; this._updateTradeUI(); }
-            }
-        }
-
-        async _attemptSwap(r1, c1, r2, c2) {
-            if (this._isProcessing || this.state !== GAME_STATE.PLAYING) return;
-            this.isProcessing = true; const s1 = this.board.get(r1, c1), s2 = this.board.get(r2, c2);
-            this.audio.swap(); this.audio.vibrate(10);
-            this.board.swap(r1, c1, r2, c2); this.renderer.render(); await Utils.delay(Config.timing.swap);
-
-            const swapPos = [{r: r1, c: c1}, {r: r2, c: c2}];
-            if (await this._handleSpecialCombo(r1, c1, r2, c2, s1, s2)) { this._consumeMove(); await this._dropCandies(); await this._gameLoop(); return; }
-
-            const { matched } = this.matcher.find(swapPos);
-            if (matched.size > 0) { this._consumeMove(); this.combo = 0; await this._gameLoop(false, swapPos); }
-            else {
-                this.board.swap(r1, c1, r2, c2); this.renderer.render(); await Utils.delay(Config.timing.swap);
-                this.audio.fail(); this.audio.vibrate(30);
-                const el1 = this.renderer.elAt(r1, c1), el2 = this.renderer.elAt(r2, c2);
-                el1?.classList.add('shake'); el2?.classList.add('shake');
-                setTimeout(() => { el1?.classList.remove('shake'); el2?.classList.remove('shake'); }, 250);
-                this.isProcessing = false; this._resetHintTimer();
-            }
-        }
-
-async _handleSpecialCombo(r1, c1, r2, c2, s1, s2) {
-             const sp1 = s1.special, sp2 = s2.special;
-             const isCross = s => s === SPECIAL.CROSS, isBomb = s => s === SPECIAL.BOMB, isStripe = s => s === SPECIAL.ROW || s === SPECIAL.COL;
-             if (isCross(sp1) && isCross(sp2)) return this._comboCrossCross();
-if (isCross(sp1) || isCross(sp2)) return this._comboCrossWithX(r1, c1, r2, c2, s1, s2, isCross);
-              if (isBomb(sp1) && isBomb(sp2)) return this._comboBombBomb(r1, c1, r2, c2);
-              if ((isBomb(sp1) && isStripe(sp2)) || (isStripe(sp1) && isBomb(sp2))) return this._comboBombStripe(r1, c1, r2, c2);
-              if (isStripe(sp1) && isStripe(sp2)) return this._comboStripeStripe(r1, c1, r2, c2);
-             return false;
-         }
-
-         async _comboCrossWithX(r1, c1, r2, c2, s1, s2, isCross) {
-             this.combo = 1; this.audio.special(); this.audio.vibrate(80);
-             const s1IsCross = isCross(s1.special);
-             const crossR = s1IsCross ? r2 : r1;
-             const crossC = s1IsCross ? c2 : c1;
-             const partnerR = s1IsCross ? r1 : r2;
-             const partnerC = s1IsCross ? c1 : c2;
-             const partner = s1IsCross ? s2 : s1;
-              if (partner.special !== SPECIAL.NONE) {
-                 return this._comboCrossSpecial(crossR, crossC, partnerR, partnerC, partner);
-             }
-return this._comboCrossNormal(crossR, crossC, partner.color);
-           }
-
-        async _comboCrossCross() {
-            this.combo = 1; this.audio.special(); this.audio.vibrate(120);
-            const indices = new Set();
-            for (let i = 0; i < this.board.data.length; i++) {
-                if (!this.board.data[i].empty) indices.add(i);
-            }
-            await this._clearByIndices(indices);
-            return true;
-        }
-
-async _comboCrossNormal(crossR, crossC, targetColor) {
-              const indices = new Set();
-              indices.add(Utils.idx(crossR, crossC));
-              for (let i = 0; i < this.board.data.length; i++) {
-                  if (this.board.data[i].empty || this.board.data[i].color !== targetColor) continue;
-                  indices.add(i);
-              }
-              await this._clearByIndices(indices);
-              return true;
-          }
-
-          async _comboCrossSpecial(crossR, crossC, partnerR, partnerC, partner) {
-              const crossIdx = Utils.idx(crossR, crossC);
-              const partnerIdx = Utils.idx(partnerR, partnerC);
-              const targetColor = partner.color;
-              let partnerSpecial = partner.special;
-              for (let i = 0; i < this.board.data.length; i++) {
-                  const cell = this.board.data[i];
-                  if (cell.empty || cell.color !== targetColor) continue;
-                  if (i === crossIdx || i === partnerIdx) continue;
-                  let infect = partnerSpecial;
-                  if (infect === SPECIAL.ROW || infect === SPECIAL.COL) {
-                      infect = Math.random() > 0.5 ? SPECIAL.ROW : SPECIAL.COL;
-                  }
-                  cell.special = infect;
-              }
-              this.board.data[crossIdx].special = SPECIAL.NONE;
-              this.board.data[partnerIdx].special = SPECIAL.NONE;
-              this.renderer.render();
-              await this._clearByIndices(new Set([crossIdx, partnerIdx]));
-              return true;
-          }
-
-          async _comboBombBomb(r1, c1, r2, c2) {
-             this.combo = 1; this.audio.explode(); this.audio.vibrate(150);
-             // B+B：7x7 菱形，交叉點在中間
-             const mr = Math.round((r1 + r2) / 2), mc = Math.round((c1 + c2) / 2);
-             const indices = new Set();
-             for (let dr = -3; dr <= 3; dr++) {
-                 for (let dc = -3; dc <= 3; dc++) {
-                     if (Math.abs(dr) + Math.abs(dc) <= 4 && Utils.inBounds(mr + dr, mc + dc)) indices.add(Utils.idx(mr + dr, mc + dc));
-                 }
-             }
-             await this._clearByIndices(indices);
-             return true;
-         }
-
-         async _comboBombStripe(r1, c1, r2, c2) {
-             this.combo = 1; this.audio.explode(); this.audio.vibrate(100);
-             const mr = Math.round((r1 + r2) / 2), mc = Math.round((c1 + c2) / 2);
-             const indices = new Set();
-             for (let i = -1; i <= 1; i++) {
-                 for (let c = 0; c < Config.width; c++) if (Utils.inBounds(mr + i, c)) indices.add(Utils.idx(mr + i, c));
-                 for (let r = 0; r < Config.height; r++) if (Utils.inBounds(r, mc + i)) indices.add(Utils.idx(r, mc + i));
-             }
-             await this._clearByIndices(indices);
-             return true;
-         }
-
-async _comboStripeStripe(r1, c1, r2, c2) {
-             this.combo = 1; this.audio.explode(); this.audio.vibrate(100);
-             // S+S：清除兩行兩列，交叉點在中間
-             const mr = Math.round((r1 + r2) / 2), mc = Math.round((c1 + c2) / 2);
-             const indices = new Set();
-             for (let c = 0; c < Config.width; c++) indices.add(Utils.idx(mr, c));
-             for (let r = 0; r < Config.height; r++) indices.add(Utils.idx(r, mc));
-             await this._clearByIndices(indices);
-return true;
-           }
-
-         async _detonateAt(r, c) {
-             this.combo = 1;
-             this.audio.explode();
-             this.audio.vibrate(150);
-             await this._clearByIndices(new Set([Utils.idx(r, c)]));
-         }
-
-        async _clearByIndices(seeds, isInit = false) {
-            const toProcess = [], queued = new Set(), finalClear = [];
-            for (const idx of seeds) { if (!queued.has(idx)) { queued.add(idx); toProcess.push(idx); } }
-            const enqueue = (r, c) => {
-                if (!Utils.inBounds(r, c)) return; const i = Utils.idx(r, c);
-                if (queued.has(i)) return; const cell = this.board.data[i];
-                if (!cell || cell.empty) return; queued.add(i); toProcess.push(i);
-};
-            const triggers = {
-                [SPECIAL.ROW]: (r) => { for (let c = 0; c < Config.width; c++) enqueue(r, c); },
-                [SPECIAL.COL]: (_r, c) => { for (let r = 0; r < Config.height; r++) enqueue(r, c); },
-                [SPECIAL.BOMB]: (r, c) => { for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) enqueue(r + dr, c + dc); },
-                [SPECIAL.CROSS]: () => {
-                    const pool = this.board.data.filter(c => !c.empty && c.special !== SPECIAL.CROSS);
-                    if (pool.length === 0) {
-                        for (let i = 0; i < this.board.data.length; i++) if (this.board.data[i].special === SPECIAL.CROSS) enqueue(...Utils.rcOf(i));
-                        return;
-                    }
-                    const target = pool[Math.floor(Math.random() * pool.length)].color;
-                    for (let i = 0; i < this.board.data.length; i++) if (this.board.data[i].color === target) enqueue(...Utils.rcOf(i));
-                }
-            };
-            while (toProcess.length > 0) {
-                const idx = toProcess.shift(); const cell = this.board.data[idx];
-                if (!cell || cell.empty) continue; const [r, c] = Utils.rcOf(idx);
-                finalClear.push({ r, c, color: cell.color, special: cell.special });
-                if (cell.special !== SPECIAL.NONE && triggers[cell.special]) triggers[cell.special](r, c);
-                cell.empty = true;
-            }
-            if (finalClear.length === 0) return;
-            if (!isInit) {
-                const multiplier = (1 + Math.max(0, this.combo - 1) * Config.scoring.comboBonus) * (this._doubleScoreActive > 0 ? 2 : 1);
-                if (this._doubleScoreActive > 0) this._doubleScoreActive--;
-                this.score += Math.floor(finalClear.length * Config.scoring.base * multiplier);
-                const conRect = this.containerEl.getBoundingClientRect();
-                for (const t of finalClear) {
-                    const el = this.renderer.elAt(t.r, t.c), rect = el.getBoundingClientRect();
-                    this.particles.emit(rect.left - conRect.left + rect.width / 2, rect.top - conRect.top + rect.height / 2, t.color);
-
-                    // 加入消除動畫 class (clearPop 動畫)
-                    el.classList.add('clearing');
-                }
-
-                if (this.combo > 1) {
-                    this.audio.combo(this.combo);
-                    this.audio.vibrate(50);
-                } else {
-                    this.audio.match();
-                }
-
-                if (finalClear.length > 5 || this.combo > 1) {
-                    if (this.fxEnabled) {
-                        this.containerEl.classList.add('shake-screen'); setTimeout(() => this.containerEl.classList.remove('shake-screen'), 300);
-                        if (this.combo > 1) {
-                            this.comboBanner.textContent = this._comboLabel(this.combo);
-                            this.comboBanner.className = `combo-banner tier-${this._comboTier(this.combo)}`;
-                            Utils.reflow(this.comboBanner);
-                            this.comboBanner.classList.add('show');
-                        }
-                    }
-                }
-                this._updateHUD(); await Utils.delay(Config.timing.clear);
-            }
-            for (const t of finalClear) this.board.set(t.r, t.c, this.board.makeEmpty());
-            this.renderer.render();
-        }
-
-        async _dropCandies() {
-            let moved = false;
-            for (let c = 0; c < Config.width; c++) {
-                let writeR = Config.height - 1;
-                for (let readR = Config.height - 1; readR >= 0; readR--) {
-                    const cell = this.board.get(readR, c);
-                    if (!cell.empty) {
-                        if (writeR !== readR) { this.board.set(writeR, c, { ...cell, fresh: true }); this.board.set(readR, c, this.board.makeEmpty()); moved = true; }
-                        writeR--;
-                    }
-                }
-                while (writeR >= 0) { this.board.set(writeR, c, this.board.makeNormal()); writeR--; moved = true; }
-            }
-            this.renderer.render(); if (moved) await Utils.delay(Config.timing.drop);
-        }
-
-        async _gameLoop(isInit = false, swapPositions = null) {
-            while (true) {
-                const { matched, specials } = this.matcher.find(swapPositions); swapPositions = null; if (matched.size === 0) break; if (!isInit) this.combo++;
-                const indicesToClear = new Set(matched), reservedSpawns = [];
-                for (const sp of specials) { const idx = Utils.idx(sp.r, sp.c); if (indicesToClear.has(idx)) { indicesToClear.delete(idx); reservedSpawns.push(sp); } }
-                await this._clearByIndices(indicesToClear, isInit);
-                if (reservedSpawns.length > 0 && !isInit) this.audio.special();
-                for (const sp of reservedSpawns) this.board.set(sp.r, sp.c, { color: sp.color, special: sp.type, empty: false, fresh: true });
-                this.renderer.render(); await this._dropCandies();
-            }
-            if (!isInit) { this.combo = 0; this._checkWinLossCondition(); }
-            if (this.state === GAME_STATE.PLAYING) { this.isProcessing = false; this._resetHintTimer(); }
-        }
-
-        _updateHUD() {
-            this.scoreEl.textContent = this.score;
-            this.tradePoolEl.textContent = this.tradeMovesPool; // 更新餘額顯示
-            this.tradePoolEl.style.color = this.tradeMovesPool >= Config.maxTradePool ? '#ff6f00' : '';
-            this.tradePoolEl.title = `上限 ${Config.maxTradePool} 步`;
-            this._updateTradeUI();
-
-            if(this.fxEnabled) { this.scoreEl.classList.remove('bump'); Utils.reflow(this.scoreEl); this.scoreEl.classList.add('bump'); }
-
-            // 目標接近時的視覺提示 (STAGE 模式)
-            const hudCenter = document.getElementById('hud-center');
-            if (this.currentMode === 'STAGE' && this.targetScore > 0) {
-                const goalRatio = this.score / this.targetScore;
-                if (goalRatio >= 0.8) {
-                    hudCenter.classList.add('goal-close');
-                    this.centerVal.style.color = '#ffeb3b';
-                    this.centerVal.style.textShadow = '0 0 5px #ff9100';
-                } else {
-                    hudCenter.classList.remove('goal-close');
-                    this.centerVal.style.color = '';
-                    this.centerVal.style.textShadow = '';
-                }
-            } else {
-                hudCenter.classList.remove('goal-close');
-            }
-
-            if ((this.currentMode === 'ENDLESS' || this.currentMode === 'TIME') && this.score > this.bestScore) {
-                this.bestScore = this.score; this.centerVal.textContent = this.bestScore; try { localStorage.setItem(Config.bestScoreKey, String(this.bestScore)); } catch (_) {}
-            }
-            this._checkMilestone();
-        }
+      }
+      this._glowRafId = requestAnimationFrame(animate);
+    };
+    animate();
+  }
+  stopGlowAnimation() { if (this._glowRafId) { cancelAnimationFrame(this._glowRafId); this._glowRafId = null; } }
+  render({ keepSelected = -1 } = {}) {
+    for (let i = 0; i < this.elements.length; i++) {
+      const cell = this.board.data[i], el = this.elements[i];
+      el.className = 'candy'; el.innerHTML = ''; el.style.boxShadow = '';
+      if (cell.empty) { el.classList.add('empty'); continue; }
+      el.classList.add(cell.color);
+      if (cell.special !== SPECIAL.NONE) {
+        el.classList.add(cell.special);
+        if (cell.special === SPECIAL.BOMB) el.innerHTML = '🍬';
+        else if (cell.special === SPECIAL.CROSS) el.innerHTML = '🌟';
+      }
+      if (cell.fresh) { el.classList.add('fresh'); cell.fresh = false; }
+      if (i === keepSelected) el.classList.add('selected');
     }
+  }
+}
 
-    document.addEventListener('DOMContentLoaded', () => { window.game = new Game(); });
-    </script>
+class Game {
+  constructor() {
+    this.fxEnabled = true;
+    this.tradeMovesPool = 0;
+    this._tradeCooldown = 0;
+    this.audio = new AudioEngine();
+    this.board = new Board(); this.matcher = new MatchFinder(this.board);
+    this.gridEl = document.getElementById('grid'); this.containerEl = document.getElementById('game-container');
+    this.renderer = new Renderer(this.board, this.gridEl); this.particles = new ParticleEngine(document.getElementById('particles'), this.containerEl);
+    this.scoreEl = document.getElementById('score'); this.centerLabel = document.getElementById('center-label');
+    this.centerVal = document.getElementById('center-val'); this.limitLabel = document.getElementById('limit-label');
+    this.limitVal = document.getElementById('limit-val'); this.comboBanner = document.getElementById('comboBanner');
+    this.tradePost = document.getElementById('trade-post'); this.inventoryPanel = document.getElementById('inventory-panel');
+    this.menuOverlay = document.getElementById('menu-overlay'); this.resultOverlay = document.getElementById('result-overlay');
+    this.rewardOverlay = document.getElementById('reward-overlay'); this.achOverlay = document.getElementById('ach-overlay');
+    this.pauseBtn = document.getElementById('btn-pause'); this.resumeBtn = document.getElementById('btn-resume');
+    this.resultBestBadge = document.getElementById('result-best-badge');
+    this.tradeBtns = Array.from(document.querySelectorAll('.trade-btn'));
+    this.tradePoolEl = document.getElementById('trade-moves-pool');
+
+    this.state = GAME_STATE.MENU; this.currentMode = 'ENDLESS';
+    this.score = 0; this.combo = 0; this._isProcessing = false; this.selectedIndex = -1;
+    this._doubleScoreActive = 0;
+    this.timeLeft = 0; this.timerInterval = null; this.currentStageLevel = 1;
+    this.movesLeft = 0; this.targetScore = 0;
+    this.inventory = { DETONATE: 0, EXTRA_MOVES: 0, DOUBLE_SCORE: 0 };
+    this.bestScore = parseInt(localStorage.getItem(Config.bestScoreKey), 10) || 0;
+    this.bestScoreAtStart = this.bestScore;
+    this.totalStars = parseInt(localStorage.getItem(Config.totalStarsKey), 10) || 0;
+    this._bgmStartOffset = 0;
+    this._hintTimer = null; this._currentHint = null;
+    this._lastMilestoneIdx = -1;
+    this.milestoneBanner = document.getElementById('milestoneBanner');
+    this.menuTotalStarsEl = document.getElementById('menu-total-stars');
+    this.menuBestEl = document.getElementById('menu-best');
+
+    this.difficulty = (() => { try { return localStorage.getItem(Config.diffKey) || 'NORMAL'; } catch (_) { return 'NORMAL'; } })();
+    if (!DIFFICULTY[this.difficulty]) this.difficulty = 'NORMAL';
+    this.stats = this._loadStats();
+    this.unlocked = this._loadUnlocked();
+    this._syncDifficultyUI();
+    this._syncMenuStars();
+
+    this._setupLeaveGuard(); this._bindInputs(); this._bindGlobalClickSfx();
+    this._syncSoundButton();
+    this.renderer.render(); this._initialResolve();
+  }
+
+  get isProcessing() { return this._isProcessing; }
+  set isProcessing(v) {
+    this._isProcessing = v;
+    if (this.containerEl) this.containerEl.classList.toggle('processing', !!v);
+    if (this.tradeBtns) this._updateTradeUI();
+  }
+
+  _loadStats() {
+    const def = { matches: 0, candies: 0, specials: 0, maxCombo: 0, maxLevel: 0, maxScore: 0, totalStars: this.totalStars };
+    try { return Object.assign(def, JSON.parse(localStorage.getItem(Config.statsKey) || '{}')); } catch (_) { return def; }
+  }
+  _saveStats() { try { localStorage.setItem(Config.statsKey, JSON.stringify(this.stats)); } catch (_) {} }
+  _loadUnlocked() { try { return new Set(JSON.parse(localStorage.getItem(Config.achKey) || '[]')); } catch (_) { return new Set(); } }
+  _saveUnlocked() { try { localStorage.setItem(Config.achKey, JSON.stringify([...this.unlocked])); } catch (_) {} }
+  _bumpStat(key, value, mode = 'add') {
+    if (mode === 'max') { if (value > (this.stats[key] || 0)) this.stats[key] = value; else return; }
+    else this.stats[key] = (this.stats[key] || 0) + value;
+    this._saveStats(); this._checkAchievements();
+  }
+  _checkAchievements() {
+    for (const a of ACHIEVEMENTS) {
+      if (this.unlocked.has(a.id)) continue;
+      if ((this.stats[a.stat] || 0) >= a.goal) {
+        this.unlocked.add(a.id); this._saveUnlocked(); this._showAchToast(a);
+      }
+    }
+  }
+  _showAchToast(a) {
+    const toast = document.getElementById('ach-toast');
+    document.getElementById('ach-toast-ico').textContent = a.icon;
+    document.getElementById('ach-toast-name').textContent = a.name;
+    toast.classList.remove('show'); Utils.reflow(toast); toast.classList.add('show');
+    setTimeout(() => this.audio.levelClear(), 120);
+  }
+  openAchievements() {
+    const list = document.getElementById('ach-list');
+    list.innerHTML = '';
+    for (const a of ACHIEVEMENTS) {
+      const cur = Math.min(this.stats[a.stat] || 0, a.goal);
+      const done = this.unlocked.has(a.id);
+      const pct = Math.round(cur / a.goal * 100);
+      const card = document.createElement('div');
+      card.className = 'ach-card' + (done ? ' done' : '');
+      card.innerHTML = `<span class="ico">${a.icon}</span><div class="meta"><div class="nm">${a.name}</div><div class="ds">${a.desc}</div><div class="ach-bar"><i style="width:${pct}%"></i></div></div><span class="prog">${done ? '✓ 完成' : cur + '/' + a.goal}</span>`;
+      list.appendChild(card);
+    }
+    document.getElementById('ach-summary').textContent = `已解鎖 ${this.unlocked.size} / ${ACHIEVEMENTS.length}`;
+    this.achOverlay.classList.add('active');
+  }
+  closeAchievements() { this.achOverlay.classList.remove('active'); }
+
+  setDifficulty(d) {
+    if (!DIFFICULTY[d]) return;
+    this.difficulty = d;
+    try { localStorage.setItem(Config.diffKey, d); } catch (_) {}
+    this._syncDifficultyUI();
+    this.audio.click();
+  }
+  _syncDifficultyUI() {
+    document.querySelectorAll('#diff-row .diff-btn').forEach(b => b.classList.toggle('active', b.dataset.diff === this.difficulty));
+  }
+  get _diffMoves() { return DIFFICULTY[this.difficulty].moves; }
+  get _diffMult() { return DIFFICULTY[this.difficulty].mult; }
+
+  toggleFX() {
+    this.fxEnabled = !this.fxEnabled;
+    const btn = document.getElementById('btn-fx-toggle');
+    if (this.fxEnabled) { document.body.classList.remove('disable-fx'); btn.textContent = '✨'; btn.classList.remove('off'); }
+    else { document.body.classList.add('disable-fx'); btn.textContent = '✨'; btn.classList.add('off'); }
+  }
+  toggleSound() {
+    const muted = this.audio.toggleMute();
+    this._syncSoundButton();
+    if (!muted && this.state === GAME_STATE.PLAYING) this.audio.startBGM(this._bgmTrackForCurrentMode());
+  }
+  _bgmTrackForLevel(level) { const cycle = Math.floor((Math.max(level, 1) - 1) / BGM_TRACK_PER_STAGES); return (this._bgmStartOffset + cycle) % BGM_TRACKS.length; }
+  _bgmTrackForCurrentMode() { return this.currentMode === 'STAGE' ? this._bgmTrackForLevel(this.currentStageLevel) : this._bgmStartOffset; }
+
+  _resetHintTimer() {
+    this._clearHintVisual();
+    if (this._hintTimer) clearTimeout(this._hintTimer);
+    this._hintTimer = null;
+    if (this.state !== GAME_STATE.PLAYING) return;
+    this._hintTimer = setTimeout(() => this._tryShowHint(), Config.hintIdleMs);
+  }
+  _killHint() { this._clearHintVisual(); if (this._hintTimer) { clearTimeout(this._hintTimer); this._hintTimer = null; } }
+  _clearHintVisual() {
+    if (!this._currentHint) return;
+    const [r1, c1, r2, c2] = this._currentHint;
+    const e1 = this.renderer.elAt(r1, c1), e2 = this.renderer.elAt(r2, c2);
+    if (e1) e1.classList.remove('hint'); if (e2) e2.classList.remove('hint');
+    this._currentHint = null;
+  }
+  _tryShowHint() {
+    if (this.state !== GAME_STATE.PLAYING) return;
+    if (this._isProcessing) { this._hintTimer = setTimeout(() => this._tryShowHint(), 1500); return; }
+    const move = this._findPossibleMove();
+    if (move) {
+      const [r1, c1, r2, c2] = move;
+      const el1 = this.renderer.elAt(r1, c1), el2 = this.renderer.elAt(r2, c2);
+      el1?.classList.add('hint'); el2?.classList.add('hint'); this._currentHint = move;
+      setTimeout(() => {
+        if (this._currentHint === move && this.state === GAME_STATE.PLAYING) {
+          el1?.classList.add('hint-bounce'); el2?.classList.add('hint-bounce');
+          setTimeout(() => { el1?.classList.remove('hint-bounce'); el2?.classList.remove('hint-bounce'); }, 1200);
+        }
+      }, 3000);
+    } else { this.isProcessing = true; this._executePropEffect('SHUFFLE'); }
+  }
+  _findPossibleMove() {
+    for (let r = 0; r < Config.height; r++) {
+      for (let c = 0; c < Config.width; c++) {
+        if (c + 1 < Config.width) {
+          this.board.swap(r, c, r, c + 1);
+          const hasMatch = this.matcher.find().matched.size > 0;
+          this.board.swap(r, c, r, c + 1);
+          if (hasMatch) return [r, c, r, c + 1];
+        }
+        if (r + 1 < Config.height) {
+          this.board.swap(r, c, r + 1, c);
+          const hasMatch = this.matcher.find().matched.size > 0;
+          this.board.swap(r, c, r + 1, c);
+          if (hasMatch) return [r, c, r + 1, c];
+        }
+      }
+    }
+    return null;
+  }
+
+  _comboLabel(n) { return COMBO_LABELS[Math.min(n, COMBO_LABELS.length - 1)] || 'LEGENDARY!'; }
+  _comboTier(n) { return Math.min(n, 6); }
+  _checkMilestone() {
+    if (this.currentMode !== 'ENDLESS' && this.currentMode !== 'TIME') return;
+    for (let i = 0; i < Config.endlessMilestones.length; i++) {
+      if (this.score >= Config.endlessMilestones[i] && i > this._lastMilestoneIdx) {
+        this._lastMilestoneIdx = i; this._triggerMilestone(Config.endlessMilestones[i]); break;
+      }
+    }
+  }
+  _triggerMilestone(value) {
+    this.milestoneBanner.textContent = `🎉 ${value.toLocaleString()}!`;
+    this.milestoneBanner.classList.remove('show'); Utils.reflow(this.milestoneBanner); this.milestoneBanner.classList.add('show');
+    this.audio.levelClear(); this._playFxFlash('rgba(255,211,107,0.4)');
+  }
+
+  _calcStars(score, target) {
+    if (target <= 0) return 3;
+    const ratio = score / target;
+    if (ratio >= 2.0) return 3;
+    if (ratio >= 1.4) return 2;
+    return 1;
+  }
+  _commitStars(stars) {
+    this.totalStars += stars;
+    try { localStorage.setItem(Config.totalStarsKey, String(this.totalStars)); } catch (_) {}
+    this._bumpStat('totalStars', this.totalStars, 'max');
+    this._syncMenuStars();
+  }
+  _syncMenuStars() {
+    if (this.menuTotalStarsEl) this.menuTotalStarsEl.textContent = this.totalStars;
+    if (this.menuBestEl) this.menuBestEl.textContent = this.bestScore;
+  }
+  _renderRewardStars(stars) {
+    const el = document.getElementById('reward-stars'); el.innerHTML = '';
+    for (let i = 0; i < 3; i++) { const s = document.createElement('span'); s.textContent = '⭐'; if (i >= stars) s.classList.add('empty'); el.appendChild(s); }
+  }
+  _targetScoreForLevel(level) { return Math.floor((500 + 400 * Math.log2(level)) * this._diffMult); }
+  _applyTheme(level) {
+    const t = Themes[((level - 1) % Themes.length + Themes.length) % Themes.length];
+    const root = document.documentElement;
+    root.style.setProperty('--bg-grad', t.bg); root.style.setProperty('--blob1', t.blob1); root.style.setProperty('--blob2', t.blob2);
+  }
+  _syncSoundButton() {
+    const btn = document.getElementById('btn-sound-toggle');
+    if (this.audio.muted) { btn.textContent = '🔇'; btn.classList.add('off'); }
+    else { btn.textContent = '🔊'; btn.classList.remove('off'); }
+  }
+  _bindGlobalClickSfx() {
+    document.addEventListener('click', e => { const tgt = e.target.closest('button:not(:disabled)'); if (tgt) this.audio.click(); }, true);
+  }
+  async _playFxFloatingText(text, targetEl) {
+    if (!this.fxEnabled) return;
+    const el = document.createElement('div'); el.className = 'fx-floating-text'; el.textContent = text;
+    const rect = targetEl.getBoundingClientRect();
+    el.style.left = `${rect.left + rect.width / 2}px`; el.style.top = `${rect.top}px`;
+    document.body.appendChild(el); setTimeout(() => el.remove(), 1200);
+  }
+  async _playFxFlash(color = 'rgba(255,255,255,0.8)') {
+    if (!this.fxEnabled) return;
+    const overlay = document.createElement('div'); overlay.className = 'fx-flash-overlay'; overlay.style.background = color;
+    document.body.appendChild(overlay); setTimeout(() => overlay.remove(), 500);
+  }
+  _setupLeaveGuard() { window.addEventListener('beforeunload', (e) => { if (this.state === GAME_STATE.PLAYING || this.state === GAME_STATE.REWARD) { e.preventDefault(); e.returnValue = ''; } }); }
+  async _initialResolve() { const { matched } = this.matcher.find(); if (matched.size > 0) { this.isProcessing = true; await this._gameLoop(true); } }
+
+  showMenu() {
+    this.state = GAME_STATE.MENU; this.menuOverlay.classList.add('active'); this.resultOverlay.classList.remove('active');
+    this.tradePost.classList.remove('active'); this.inventoryPanel.classList.remove('active');
+    this.pauseBtn.style.display = 'none'; this.resumeBtn.style.display = 'none';
+    this.resultBestBadge.classList.remove('show');
+    if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
+    this.audio.stopBGM(); this._applyTheme(1); this._killHint(); this._syncMenuStars();
+  }
+  openPauseMenu() {
+    if (this.state !== GAME_STATE.PLAYING || this.isProcessing) return;
+    this.state = GAME_STATE.PAUSED; this.menuOverlay.classList.add('active'); this.resumeBtn.style.display = 'block';
+    if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
+    this.audio.stopBGM(); this._killHint();
+  }
+  resumeGame() {
+    if (this.state !== GAME_STATE.PAUSED) return;
+    this.menuOverlay.classList.remove('active'); this.resumeBtn.style.display = 'none'; this.state = GAME_STATE.PLAYING;
+    if (this.currentMode === 'TIME') this._startTimeTimer();
+    if (!this.audio.muted) this.audio.startBGM(this._bgmTrackForCurrentMode());
+    this._resetHintTimer();
+  }
+  _startTimeTimer() {
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    this.timerInterval = setInterval(() => {
+      if (this.state !== GAME_STATE.PLAYING) return;
+      this.timeLeft--; this.limitVal.textContent = this.timeLeft + 's';
+      if (this.timeLeft <= 0) this._endGame('TIME_UP');
+    }, 1000);
+  }
+  startMode(mode) {
+    this.currentMode = mode; this.menuOverlay.classList.remove('active'); this.resultOverlay.classList.remove('active');
+    this.resumeBtn.style.display = 'none'; this.resultBestBadge.classList.remove('show'); this.pauseBtn.style.display = 'inline-block';
+    if (mode === 'STAGE') {
+      this.currentStageLevel = 1; this.movesLeft = this._diffMoves; this.score = 0; this.targetScore = this._targetScoreForLevel(1);
+      this.inventory = { DETONATE: 0, EXTRA_MOVES: 0, DOUBLE_SCORE: 0 }; this._updateInventoryUI();
+      this.tradeMovesPool = 0;
+      this.tradePost.classList.add('active'); this.inventoryPanel.classList.add('active');
+      this._initLevel(true);
+    } else {
+      this.tradePost.classList.remove('active'); this.inventoryPanel.classList.remove('active');
+      this._initLevel(true);
+    }
+    this.bestScoreAtStart = this.bestScore; this._lastMilestoneIdx = -1;
+    this._bgmStartOffset = Math.floor(Math.random() * BGM_TRACKS.length);
+    this._applyTheme(mode === 'STAGE' ? this.currentStageLevel : 1);
+    if (!this.audio.muted) this.audio.startBGM(this._bgmTrackForCurrentMode());
+  }
+  restartCurrentMode() {
+    this.resultOverlay.classList.remove('active');
+    if (this.currentMode === 'STAGE') {
+      this.score = 0; this.movesLeft = this._diffMoves; this.targetScore = this._targetScoreForLevel(this.currentStageLevel);
+      this.tradeMovesPool = 0; this.inventory = { DETONATE: 0, EXTRA_MOVES: 0, DOUBLE_SCORE: 0 }; this._updateInventoryUI();
+      this._applyTheme(this.currentStageLevel);
+      if (!this.audio.muted) this.audio.switchTrack(this._bgmTrackForLevel(this.currentStageLevel));
+      this._initLevel(true);
+    } else { this.startMode(this.currentMode); }
+  }
+  _initLevel(resetBoard = false) {
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    if (resetBoard) { this.board = new Board(); this.matcher = new MatchFinder(this.board); this.renderer.board = this.board; if (this.currentMode !== 'STAGE') this.score = 0; }
+    this.combo = 0; this.isProcessing = false; this.selectedIndex = -1; this.state = GAME_STATE.PLAYING;
+    if (this.currentMode === 'ENDLESS') {
+      this.centerLabel.textContent = '最佳'; this.centerVal.textContent = this.bestScore; this.limitLabel.textContent = '模式'; this.limitVal.textContent = '∞';
+    } else if (this.currentMode === 'TIME') {
+      this.timeLeft = 60; this.centerLabel.textContent = '最佳'; this.centerVal.textContent = this.bestScore; this.limitLabel.textContent = '時間'; this.limitVal.textContent = this.timeLeft + 's';
+      this._startTimeTimer();
+    } else if (this.currentMode === 'STAGE') {
+      this.centerLabel.textContent = `第 ${this.currentStageLevel} 關目標`; this.centerVal.textContent = this.targetScore;
+      this.limitLabel.textContent = '步數'; this.limitVal.textContent = this.movesLeft; this.scoreEl.textContent = this.score;
+      this._initialMoves = this.movesLeft;
+    }
+    this.renderer.render(); this._updateHUD(); if (resetBoard) this._initialResolve();
+    this._resetHintTimer();
+  }
+
+  async tradeItem(type, cost) {
+    if (this.state !== GAME_STATE.PLAYING || this.isProcessing || this.currentMode !== 'STAGE') return;
+    const actualCost = Config.tradeCosts[type] ?? cost;
+    if (this.tradeMovesPool < actualCost) { this.tradePoolEl.style.color = '#ffd36b'; setTimeout(() => this.tradePoolEl.style.color = '', 300); this.audio.fail(); return; }
+    this.isProcessing = true; this.tradeMovesPool -= actualCost; this._tradeCooldown = Config.tradeCooldown; this._updateHUD(); this.audio.trade();
+    await this._executePropEffect(type);
+  }
+  _updateInventoryUI() {
+    const keys = { DETONATE: 'detonate', EXTRA_MOVES: 'moves', DOUBLE_SCORE: 'double-score' };
+    for (const [key, id] of Object.entries(keys)) { const count = this.inventory[key]; document.getElementById(`inv-${id}`).textContent = count; document.getElementById(`btn-inv-${id}`).disabled = count === 0; }
+  }
+  _updateTradeUI() {
+    for (const btn of this.tradeBtns) {
+      const cost = parseInt(btn.dataset.cost, 10) || 0;
+      const onCooldown = this._tradeCooldown > 0;
+      btn.disabled = (this.currentMode !== 'STAGE' || this.state !== GAME_STATE.PLAYING || this._isProcessing || this.tradeMovesPool < cost || onCooldown);
+      btn.title = onCooldown ? `冷卻中 (${this._tradeCooldown} 回合)` : '';
+    }
+  }
+  async useInventory(type) {
+    if (this.state !== GAME_STATE.PLAYING || this.isProcessing || this.inventory[type] <= 0) return;
+    this.inventory[type]--; this._updateInventoryUI(); this.isProcessing = true; this.audio.trade();
+    await this._executePropEffect(type);
+  }
+  async _executePropEffect(type) {
+    const handler = this._propEffects[type];
+    if (handler) await handler.call(this);
+    this._checkWinLossCondition(); if (this.state === GAME_STATE.PLAYING) this.isProcessing = false;
+  }
+  _getUniqueRandomIndices(count) { const indices = new Set(); while (indices.size < count) indices.add(Math.floor(Math.random() * Config.boardCells)); return indices; }
+  get _propEffects() {
+    if (!this.__propEffects) this.__propEffects = {
+      EXTRA_MOVES: async function() {
+        const added = 3; this.movesLeft += added; this.limitVal.textContent = this.movesLeft;
+        this._playFxFloatingText(`+${added} 步`, this.limitVal); this.audio.special();
+        this.limitVal.style.color = '#4fdd97'; setTimeout(() => this.limitVal.style.color = '', 500);
+      },
+      SHUFFLE: async function() {
+        this.audio.special();
+        if (this.fxEnabled) { this.gridEl.classList.add('fx-shuffle-out'); await Utils.delay(250); }
+        const arr = this.board.data.filter(c => !c.empty); arr.sort(() => Math.random() - 0.5);
+        let idx = 0; for (let i = 0; i < this.board.data.length; i++) { if (!this.board.data[i].empty) { this.board.data[i] = arr[idx++]; this.board.data[i].fresh = true; } }
+        this.renderer.render();
+        if (this.fxEnabled) { this.gridEl.classList.remove('fx-shuffle-out'); this.gridEl.classList.add('fx-shuffle-in'); await Utils.delay(250); this.gridEl.classList.remove('fx-shuffle-in'); }
+        await Utils.delay(Config.timing.drop); await this._gameLoop();
+      },
+      RANDOM_CLEAR: async function() { this._playFxFlash('rgba(255,235,59,0.5)'); this.audio.special(); const indices = this._getUniqueRandomIndices(5); await this._clearByIndices(indices); await this._dropCandies(); await this._gameLoop(); },
+      DETONATE: async function() {
+        this._playFxFlash('rgba(244,67,54,0.5)'); this.audio.explode();
+        const specials = new Set(); for (let i = 0; i < this.board.data.length; i++) { if (this.board.data[i].special !== SPECIAL.NONE) specials.add(i); }
+        await this._clearByIndices(specials.size > 0 ? specials : new Set([Math.floor(Math.random() * Config.boardCells)])); await this._dropCandies(); await this._gameLoop();
+      },
+      SPAWN_BOMB: async function() {
+        const candidates = [];
+        for (let i = 0; i < this.board.data.length; i++) { if (!this.board.data[i].empty && this.board.data[i].special === SPECIAL.NONE) candidates.push(i); }
+        const idx = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : Math.floor(Math.random() * Config.boardCells);
+        let color = Utils.randomColor();
+        this.board.data[idx] = { color, special: SPECIAL.BOMB, empty: false, fresh: true }; this.renderer.render(); this.audio.special();
+        if (this.fxEnabled) {
+          const elRect = this.renderer.elAt(...Utils.rcOf(idx)).getBoundingClientRect(), conRect = this.containerEl.getBoundingClientRect();
+          for (let i = 0; i < 8; i++) this.particles.emit(elRect.left - conRect.left + elRect.width / 2, elRect.top - conRect.top + elRect.height / 2, color);
+        }
+      },
+      SPAWN_CROSS: async function() {
+        const candidates = [];
+        for (let i = 0; i < this.board.data.length; i++) { if (!this.board.data[i].empty && this.board.data[i].special === SPECIAL.NONE) candidates.push(i); }
+        const idx = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : Math.floor(Math.random() * Config.boardCells);
+        this.board.data[idx] = { color: Utils.randomColor(), special: SPECIAL.CROSS, empty: false, fresh: true }; this.renderer.render(); this.audio.special();
+        this._playFxFlash('rgba(176,107,255,0.4)');
+      },
+      DOUBLE_SCORE: async function() { this._playFxFlash('rgba(255,215,0,0.6)'); this.audio.special(); this._playFxFloatingText('2x 分數！', this.scoreEl); this._doubleScoreActive = 5; }
+    };
+    return this.__propEffects;
+  }
+
+  _checkWinLossCondition() {
+    if (this.state !== GAME_STATE.PLAYING) return;
+    if (this.currentMode === 'STAGE') {
+      if (this.score >= this.targetScore) {
+        this.state = GAME_STATE.REWARD; this.isProcessing = true; this.audio.levelClear(); this._prepareRewardModal();
+        setTimeout(() => { this.rewardOverlay.classList.add('active'); }, 500);
+      } else if (this.movesLeft <= 0) { this._endGame('OUT_OF_MOVES'); }
+    }
+  }
+  _prepareRewardModal() {
+    const cleared = this.currentStageLevel;
+    const isBonus = cleared % REWARD_EVERY === 0;
+    const bonusEl = document.getElementById('reward-bonus');
+    const hintEl = document.getElementById('reward-next-hint');
+    const titleEl = document.getElementById('reward-title');
+    titleEl.textContent = `第 ${cleared} 關過關！🎉`;
+    const stars = this._calcStars(this.score, this.targetScore);
+    this._renderRewardStars(stars); this._commitStars(stars);
+    this._bumpStat('maxLevel', cleared, 'max');
+    if (isBonus) {
+      const type = ItemKeys[Math.floor(Math.random() * ItemKeys.length)];
+      this.inventory[type]++; this._updateInventoryUI();
+      document.getElementById('reward-bonus-name').textContent = ItemInfo[type].name;
+      document.getElementById('reward-bonus-desc').textContent = ItemInfo[type].desc;
+      bonusEl.style.display = 'block'; bonusEl.style.animation = 'none'; Utils.reflow(bonusEl); bonusEl.style.animation = '';
+      setTimeout(() => this.audio.special(), 350);
+    } else { bonusEl.style.display = 'none'; }
+    const nextBonusLevel = Math.ceil((cleared + 1) / REWARD_EVERY) * REWARD_EVERY;
+    const gap = nextBonusLevel - cleared;
+    hintEl.textContent = `下次獎勵：第 ${nextBonusLevel} 關 (再 ${gap} 關)`;
+  }
+  claimReward() {
+    this.rewardOverlay.classList.remove('active');
+    const convertedMoves = Math.floor(this.movesLeft * Config.bonusConversionRate);
+    this.tradeMovesPool = Math.min(this.tradeMovesPool + convertedMoves, Config.maxTradePool);
+    this._tradeCooldown = 0;
+    this.currentStageLevel++;
+    this.targetScore = this._targetScoreForLevel(this.currentStageLevel);
+    this.score = 0; this.movesLeft = this._diffMoves;
+    this.state = GAME_STATE.PLAYING; this.isProcessing = false; this._updateHUD();
+    this.centerLabel.textContent = `第 ${this.currentStageLevel} 關目標`; this.centerVal.textContent = this.targetScore;
+    this._applyTheme(this.currentStageLevel);
+    if (!this.audio.muted) this.audio.switchTrack(this._bgmTrackForLevel(this.currentStageLevel));
+    this._resetHintTimer();
+  }
+  _endGame(reason) {
+    this.state = GAME_STATE.GAME_OVER; this.isProcessing = true;
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    this.audio.gameOver(); this.audio.stopBGM(); this.pauseBtn.style.display = 'none'; this._killHint();
+    const titleEl = document.getElementById('result-title'), descEl = document.getElementById('result-desc');
+    const isNewBest = (this.currentMode === 'ENDLESS' || this.currentMode === 'TIME') && this.score > 0 && this.score > this.bestScoreAtStart;
+    if (reason === 'OUT_OF_MOVES') { titleEl.textContent = `第 ${this.currentStageLevel} 關 步數用盡 😢`; descEl.innerHTML = `分數：<b>${this.score}</b> / ${this.targetScore}`; }
+    else if (reason === 'TIME_UP') { titleEl.textContent = '時間到！⏰'; descEl.innerHTML = `最終分數：<b>${this.score}</b>`; }
+    else { titleEl.textContent = '遊戲結束'; descEl.innerHTML = `分數：<b>${this.score}</b>`; }
+    this.resultBestBadge.classList.toggle('show', isNewBest);
+    setTimeout(() => { this.resultOverlay.classList.add('active'); }, 800);
+  }
+
+  async _triggerBombAt(r, c) { this._clearSelection(); this.isProcessing = true; this.combo = 1; this._consumeMove(); await this._detonateAt(r, c); await this._dropCandies(); await this._gameLoop(); }
+
+  _bindInputs() {
+    let startX = 0, startY = 0, downIdx = -1, startTime = 0, lastTapIdx = -1, lastTapTime = 0;
+    this.gridEl.addEventListener('pointerdown', e => {
+      if (this.state !== GAME_STATE.PLAYING || this.isProcessing) return;
+      const target = e.target.closest('.candy'); if (!target || target.classList.contains('empty')) return;
+      e.preventDefault(); startX = e.clientX; startY = e.clientY; startTime = Date.now(); downIdx = parseInt(target.dataset.idx, 10);
+      this._resetHintTimer();
+    });
+    const handleUp = async e => {
+      if (downIdx === -1 || this.state !== GAME_STATE.PLAYING || this.isProcessing) { downIdx = -1; return; }
+      const idx = downIdx; downIdx = -1; const [r, c] = Utils.rcOf(idx);
+      const dx = e.clientX - startX, dy = e.clientY - startY, duration = Date.now() - startTime;
+      let isSwipe = Math.abs(dx) > Config.swipeThreshold || Math.abs(dy) > Config.swipeThreshold;
+      if (duration < 250 && Math.max(Math.abs(dx), Math.abs(dy)) < 35) isSwipe = false;
+      if (isSwipe) {
+        this._clearSelection(); let r2 = r, c2 = c;
+        if (Math.abs(dx) > Math.abs(dy)) c2 += dx > 0 ? 1 : -1; else r2 += dy > 0 ? 1 : -1;
+        if (Utils.inBounds(r2, c2)) await this._attemptSwap(r, c, r2, c2); return;
+      }
+      const now = Date.now(), isDoubleTap = (idx === lastTapIdx && (now - lastTapTime) < 400);
+      lastTapIdx = idx; lastTapTime = now; const cell = this.board.get(r, c);
+      if (this.selectedIndex === idx || isDoubleTap) { this._clearSelection(); if (cell && cell.special !== SPECIAL.NONE) await this._triggerBombAt(r, c); }
+      else {
+        const prev = this.selectedIndex; this._clearSelection();
+        if (prev !== -1) { const [pr, pc] = Utils.rcOf(prev); if (Math.abs(pr - r) + Math.abs(pc - c) === 1) { await this._attemptSwap(pr, pc, r, c); return; } }
+        this.selectedIndex = idx; this.renderer.render({ keepSelected: idx });
+      }
+    };
+    window.addEventListener('pointerup', handleUp); window.addEventListener('pointercancel', () => { downIdx = -1; });
+  }
+  _clearSelection() { if (this.selectedIndex !== -1) { this.selectedIndex = -1; this.renderer.render(); } }
+  _consumeMove(amount = 1) {
+    if (this.currentMode === 'STAGE' && this.state === GAME_STATE.PLAYING) {
+      this.movesLeft -= amount; this.limitVal.textContent = this.movesLeft;
+      if (this._tradeCooldown > 0) { this._tradeCooldown--; this._updateTradeUI(); }
+    }
+  }
+  async _attemptSwap(r1, c1, r2, c2) {
+    if (this._isProcessing || this.state !== GAME_STATE.PLAYING) return;
+    this.isProcessing = true; const s1 = this.board.get(r1, c1), s2 = this.board.get(r2, c2);
+    this.audio.swap(); this.audio.vibrate(10);
+    this.board.swap(r1, c1, r2, c2); this.renderer.render(); await Utils.delay(Config.timing.swap);
+    const swapPos = [{ r: r1, c: c1 }, { r: r2, c: c2 }];
+    if (await this._handleSpecialCombo(r1, c1, r2, c2, s1, s2)) { this._consumeMove(); await this._dropCandies(); await this._gameLoop(); return; }
+    const { matched } = this.matcher.find(swapPos);
+    if (matched.size > 0) { this._consumeMove(); this.combo = 0; await this._gameLoop(false, swapPos); }
+    else {
+      this.board.swap(r1, c1, r2, c2); this.renderer.render(); await Utils.delay(Config.timing.swap);
+      this.audio.fail(); this.audio.vibrate(30);
+      const el1 = this.renderer.elAt(r1, c1), el2 = this.renderer.elAt(r2, c2);
+      el1?.classList.add('shake'); el2?.classList.add('shake');
+      setTimeout(() => { el1?.classList.remove('shake'); el2?.classList.remove('shake'); }, 250);
+      this.isProcessing = false; this._resetHintTimer();
+    }
+  }
+  async _handleSpecialCombo(r1, c1, r2, c2, s1, s2) {
+    const sp1 = s1.special, sp2 = s2.special;
+    const isCross = s => s === SPECIAL.CROSS, isBomb = s => s === SPECIAL.BOMB, isStripe = s => s === SPECIAL.ROW || s === SPECIAL.COL;
+    if (isCross(sp1) && isCross(sp2)) return this._comboCrossCross();
+    if (isCross(sp1) || isCross(sp2)) return this._comboCrossWithX(r1, c1, r2, c2, s1, s2, isCross);
+    if (isBomb(sp1) && isBomb(sp2)) return this._comboBombBomb(r1, c1, r2, c2);
+    if ((isBomb(sp1) && isStripe(sp2)) || (isStripe(sp1) && isBomb(sp2))) return this._comboBombStripe(r1, c1, r2, c2);
+    if (isStripe(sp1) && isStripe(sp2)) return this._comboStripeStripe(r1, c1, r2, c2);
+    return false;
+  }
+  async _comboCrossWithX(r1, c1, r2, c2, s1, s2, isCross) {
+    this.combo = 1; this.audio.special(); this.audio.vibrate(80);
+    const s1IsCross = isCross(s1.special);
+    const crossR = s1IsCross ? r2 : r1, crossC = s1IsCross ? c2 : c1;
+    const partnerR = s1IsCross ? r1 : r2, partnerC = s1IsCross ? c1 : c2;
+    const partner = s1IsCross ? s2 : s1;
+    if (partner.special !== SPECIAL.NONE) return this._comboCrossSpecial(crossR, crossC, partnerR, partnerC, partner);
+    return this._comboCrossNormal(crossR, crossC, partner.color);
+  }
+  async _comboCrossCross() {
+    this.combo = 1; this.audio.special(); this.audio.vibrate(120);
+    const indices = new Set(); for (let i = 0; i < this.board.data.length; i++) { if (!this.board.data[i].empty) indices.add(i); }
+    await this._clearByIndices(indices); return true;
+  }
+  async _comboCrossNormal(crossR, crossC, targetColor) {
+    const indices = new Set(); indices.add(Utils.idx(crossR, crossC));
+    for (let i = 0; i < this.board.data.length; i++) { if (this.board.data[i].empty || this.board.data[i].color !== targetColor) continue; indices.add(i); }
+    await this._clearByIndices(indices); return true;
+  }
+  async _comboCrossSpecial(crossR, crossC, partnerR, partnerC, partner) {
+    const crossIdx = Utils.idx(crossR, crossC), partnerIdx = Utils.idx(partnerR, partnerC);
+    const targetColor = partner.color; let partnerSpecial = partner.special;
+    for (let i = 0; i < this.board.data.length; i++) {
+      const cell = this.board.data[i];
+      if (cell.empty || cell.color !== targetColor) continue;
+      if (i === crossIdx || i === partnerIdx) continue;
+      let infect = partnerSpecial;
+      if (infect === SPECIAL.ROW || infect === SPECIAL.COL) infect = Math.random() > 0.5 ? SPECIAL.ROW : SPECIAL.COL;
+      cell.special = infect;
+    }
+    this.board.data[crossIdx].special = SPECIAL.NONE; this.board.data[partnerIdx].special = SPECIAL.NONE;
+    this.renderer.render(); await this._clearByIndices(new Set([crossIdx, partnerIdx])); return true;
+  }
+  async _comboBombBomb(r1, c1, r2, c2) {
+    this.combo = 1; this.audio.explode(); this.audio.vibrate(150);
+    const mr = Math.round((r1 + r2) / 2), mc = Math.round((c1 + c2) / 2);
+    const indices = new Set();
+    for (let dr = -3; dr <= 3; dr++) for (let dc = -3; dc <= 3; dc++) if (Math.abs(dr) + Math.abs(dc) <= 4 && Utils.inBounds(mr + dr, mc + dc)) indices.add(Utils.idx(mr + dr, mc + dc));
+    await this._clearByIndices(indices); return true;
+  }
+  async _comboBombStripe(r1, c1, r2, c2) {
+    this.combo = 1; this.audio.explode(); this.audio.vibrate(100);
+    const mr = Math.round((r1 + r2) / 2), mc = Math.round((c1 + c2) / 2);
+    const indices = new Set();
+    for (let i = -1; i <= 1; i++) { for (let c = 0; c < Config.width; c++) if (Utils.inBounds(mr + i, c)) indices.add(Utils.idx(mr + i, c)); for (let r = 0; r < Config.height; r++) if (Utils.inBounds(r, mc + i)) indices.add(Utils.idx(r, mc + i)); }
+    await this._clearByIndices(indices); return true;
+  }
+  async _comboStripeStripe(r1, c1, r2, c2) {
+    this.combo = 1; this.audio.explode(); this.audio.vibrate(100);
+    const mr = Math.round((r1 + r2) / 2), mc = Math.round((c1 + c2) / 2);
+    const indices = new Set();
+    for (let c = 0; c < Config.width; c++) indices.add(Utils.idx(mr, c));
+    for (let r = 0; r < Config.height; r++) indices.add(Utils.idx(r, mc));
+    await this._clearByIndices(indices); return true;
+  }
+  async _detonateAt(r, c) { this.combo = 1; this.audio.explode(); this.audio.vibrate(150); await this._clearByIndices(new Set([Utils.idx(r, c)])); }
+
+  async _clearByIndices(seeds, isInit = false) {
+    const toProcess = [], queued = new Set(), finalClear = [];
+    for (const idx of seeds) { if (!queued.has(idx)) { queued.add(idx); toProcess.push(idx); } }
+    const enqueue = (r, c) => {
+      if (!Utils.inBounds(r, c)) return; const i = Utils.idx(r, c);
+      if (queued.has(i)) return; const cell = this.board.data[i];
+      if (!cell || cell.empty) return; queued.add(i); toProcess.push(i);
+    };
+    const triggers = {
+      [SPECIAL.ROW]: (r) => { for (let c = 0; c < Config.width; c++) enqueue(r, c); },
+      [SPECIAL.COL]: (_r, c) => { for (let r = 0; r < Config.height; r++) enqueue(r, c); },
+      [SPECIAL.BOMB]: (r, c) => { for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) enqueue(r + dr, c + dc); },
+      [SPECIAL.CROSS]: () => {
+        const pool = this.board.data.filter(c => !c.empty && c.special !== SPECIAL.CROSS);
+        if (pool.length === 0) { for (let i = 0; i < this.board.data.length; i++) if (this.board.data[i].special === SPECIAL.CROSS) enqueue(...Utils.rcOf(i)); return; }
+        const target = pool[Math.floor(Math.random() * pool.length)].color;
+        for (let i = 0; i < this.board.data.length; i++) if (this.board.data[i].color === target) enqueue(...Utils.rcOf(i));
+      }
+    };
+    while (toProcess.length > 0) {
+      const idx = toProcess.shift(); const cell = this.board.data[idx];
+      if (!cell || cell.empty) continue; const [r, c] = Utils.rcOf(idx);
+      finalClear.push({ r, c, color: cell.color, special: cell.special });
+      if (cell.special !== SPECIAL.NONE && triggers[cell.special]) triggers[cell.special](r, c);
+      cell.empty = true;
+    }
+    if (finalClear.length === 0) return;
+    if (!isInit) {
+      const multiplier = (1 + Math.max(0, this.combo - 1) * Config.scoring.comboBonus) * (this._doubleScoreActive > 0 ? 2 : 1);
+      if (this._doubleScoreActive > 0) this._doubleScoreActive--;
+      this.score += Math.floor(finalClear.length * Config.scoring.base * multiplier);
+      this._bumpStat('candies', finalClear.length);
+      const conRect = this.containerEl.getBoundingClientRect();
+      for (const t of finalClear) {
+        const el = this.renderer.elAt(t.r, t.c), rect = el.getBoundingClientRect();
+        this.particles.emit(rect.left - conRect.left + rect.width / 2, rect.top - conRect.top + rect.height / 2, t.color);
+        el.classList.add('clearing');
+      }
+      if (this.combo > 1) { this.audio.combo(this.combo); this.audio.vibrate(50); } else { this.audio.match(); }
+      if (finalClear.length > 5 || this.combo > 1) {
+        if (this.fxEnabled) {
+          this.containerEl.classList.add('shake-screen'); setTimeout(() => this.containerEl.classList.remove('shake-screen'), 300);
+          if (this.combo > 1) { this.comboBanner.textContent = this._comboLabel(this.combo); this.comboBanner.className = `combo-banner tier-${this._comboTier(this.combo)}`; Utils.reflow(this.comboBanner); this.comboBanner.classList.add('show'); }
+        }
+      }
+      this._updateHUD(); await Utils.delay(Config.timing.clear);
+    }
+    for (const t of finalClear) this.board.set(t.r, t.c, this.board.makeEmpty());
+    this.renderer.render();
+  }
+  async _dropCandies() {
+    let moved = false;
+    for (let c = 0; c < Config.width; c++) {
+      let writeR = Config.height - 1;
+      for (let readR = Config.height - 1; readR >= 0; readR--) {
+        const cell = this.board.get(readR, c);
+        if (!cell.empty) { if (writeR !== readR) { this.board.set(writeR, c, { ...cell, fresh: true }); this.board.set(readR, c, this.board.makeEmpty()); moved = true; } writeR--; }
+      }
+      while (writeR >= 0) { this.board.set(writeR, c, this.board.makeNormal()); writeR--; moved = true; }
+    }
+    this.renderer.render(); if (moved) await Utils.delay(Config.timing.drop);
+  }
+  async _gameLoop(isInit = false, swapPositions = null) {
+    while (true) {
+      const { matched, specials } = this.matcher.find(swapPositions); swapPositions = null; if (matched.size === 0) break; if (!isInit) this.combo++;
+      if (!isInit) { this._bumpStat('matches', 1); this._bumpStat('maxCombo', this.combo, 'max'); }
+      const indicesToClear = new Set(matched), reservedSpawns = [];
+      for (const sp of specials) { const idx = Utils.idx(sp.r, sp.c); if (indicesToClear.has(idx)) { indicesToClear.delete(idx); reservedSpawns.push(sp); } }
+      await this._clearByIndices(indicesToClear, isInit);
+      if (reservedSpawns.length > 0 && !isInit) { this.audio.special(); this._bumpStat('specials', reservedSpawns.length); }
+      for (const sp of reservedSpawns) this.board.set(sp.r, sp.c, { color: sp.color, special: sp.type, empty: false, fresh: true });
+      this.renderer.render(); await this._dropCandies();
+    }
+    if (!isInit) { this.combo = 0; this._checkWinLossCondition(); }
+    if (this.state === GAME_STATE.PLAYING) { this.isProcessing = false; this._resetHintTimer(); }
+  }
+  _updateHUD() {
+    this.scoreEl.textContent = this.score;
+    this.tradePoolEl.textContent = this.tradeMovesPool;
+    this.tradePoolEl.style.color = this.tradeMovesPool >= Config.maxTradePool ? '#ffb33c' : '';
+    this.tradePoolEl.title = `上限 ${Config.maxTradePool} 步`;
+    this._updateTradeUI();
+    if (this.fxEnabled) { this.scoreEl.classList.remove('bump'); Utils.reflow(this.scoreEl); this.scoreEl.classList.add('bump'); }
+    const hudCenter = document.getElementById('hud-center');
+    if (this.currentMode === 'STAGE' && this.targetScore > 0) {
+      const goalRatio = this.score / this.targetScore;
+      if (goalRatio >= 0.8) { hudCenter.classList.add('goal-close'); this.centerVal.style.color = 'var(--gold)'; this.centerVal.style.textShadow = '0 0 6px #ff9100'; }
+      else { hudCenter.classList.remove('goal-close'); this.centerVal.style.color = ''; this.centerVal.style.textShadow = ''; }
+    } else { hudCenter.classList.remove('goal-close'); }
+    if ((this.currentMode === 'ENDLESS' || this.currentMode === 'TIME') && this.score > this.bestScore) {
+      this.bestScore = this.score; this.centerVal.textContent = this.bestScore; try { localStorage.setItem(Config.bestScoreKey, String(this.bestScore)); } catch (_) {}
+    }
+    this._bumpStat('maxScore', this.score, 'max');
+    this._checkMilestone();
+  }
+}
+
+window.game = new Game();
+</script>
 </body>
 </html>
