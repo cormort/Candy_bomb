@@ -142,6 +142,7 @@ body::after { width: 340px; height: 340px; background: radial-gradient(circle, v
 @keyframes hintBounce { 0%,100% { transform: scale(1); } 50% { transform: scale(1.2); } }
 .shake-screen { animation: shake 0.3s ease-in-out; }
 @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.candy.falling { transition: none !important; }
 .candy.fresh { animation: spawn var(--anim-slow) cubic-bezier(0.34,1.56,0.64,1); }
 @keyframes spawn { 0% { transform: translateY(-54px) scale(0.4); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
 .candy.clearing { animation: clearPop var(--anim-fast) ease-out forwards; }
@@ -167,6 +168,7 @@ body.disable-fx .candy.bomb { animation: none !important; }
 body.disable-fx .candy.cross, body.disable-fx .candy.rainbow { animation: none !important; filter: none !important; }
 body.disable-fx .shake-screen { animation: none !important; transform: none !important; }
 body.disable-fx .candy.fresh, body.disable-fx .candy.clearing { animation: none !important; }
+body.disable-fx .candy { transition: none !important; }
 body.disable-fx .candy.hint { animation: none !important; }
 
 .inventory-container, .shop-container { display: none; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 12px; backdrop-filter: blur(8px); z-index: 10; margin-bottom: 12px; }
@@ -583,6 +585,9 @@ class ParticleEngine {
     this.canvas = canvas; this.ctx = canvas.getContext('2d'); this.container = container;
     this._pool = []; this.activeParticles = []; this._rafId = null; this._poolSize = 150;
     this.resize(); window.addEventListener('resize', () => this.resize());
+    // free-list of pool indices: acquire/park in O(1) instead of linear find(!active)
+    this._free = [];
+    for (let i = 0; i < this._poolSize; i++) this._free.push(i);
     for (let i = 0; i < this._poolSize; i++) this._pool.push({ x: 0, y: 0, vx: 0, vy: 0, life: 0, color: '#fff', size: 2, active: false });
   }
   resize() {
@@ -599,8 +604,8 @@ class ParticleEngine {
     if (this.activeParticles.length > 0) {
       const { gravity, decay } = Config.particles;
       for (let i = this.activeParticles.length - 1; i >= 0; i--) {
-        const p = this.activeParticles[i]; p.x += p.vx; p.y += p.vy; p.vy += gravity; p.life -= decay;
-        if (p.life <= 0) { p.active = false; this.activeParticles.splice(i, 1); continue; }
+        const p = this._pool[this.activeParticles[i]]; p.x += p.vx; p.y += p.vy; p.vy += gravity; p.life -= decay;
+        if (p.life <= 0) { p.active = false; this._free.push(this.activeParticles[i]); this.activeParticles.splice(i, 1); continue; }
         this.ctx.globalAlpha = p.life; this.ctx.fillStyle = p.color;
         this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); this.ctx.fill();
       }
@@ -613,11 +618,12 @@ class ParticleEngine {
     const color = Config.colorHex[colorName] || colorName;
     const { count, spread } = Config.particles;
     for (let i = 0; i < count; i++) {
-      let p = this._pool.find(p => !p.active);
-      if (!p) { p = { x: 0, y: 0, vx: 0, vy: 0, life: 0, color: '#fff', size: 2, active: false }; this._pool.push(p); }
+      let idx = this._free.pop();
+      if (idx === undefined) { this._pool.push({ x: 0, y: 0, vx: 0, vy: 0, life: 0, color: '#fff', size: 2, active: false }); idx = this._pool.length - 1; }
+      const p = this._pool[idx];
       p.x = x; p.y = y; p.vx = (Math.random() - 0.5) * spread; p.vy = (Math.random() - 0.5) * spread;
       p.life = 1; p.color = color; p.size = Math.random() * 4 + 2; p.active = true;
-      this.activeParticles.push(p);
+      this.activeParticles.push(idx);
     }
     this._ensureLoop();
   }
@@ -707,38 +713,53 @@ class Renderer {
       const el = document.createElement('div'); el.className = 'candy'; el.dataset.idx = i;
       this.gridEl.appendChild(el); this.elements.push(el);
     }
-    this._glowPhase = 0; this._glowRafId = null; this._startGlowAnimation();
+    this._glowPhase = 0; this._glowRafId = null;
+    this._specialEls = []; this._stride = 0;
+    this._updateStride();
+    window.addEventListener('resize', () => this._updateStride());
+  }
+  _updateStride() {
+    // row stride = cell-size + gap; cached because cell-size is responsive (media query)
+    const cs = getComputedStyle(this.gridEl);
+    this._stride = parseFloat(cs.gridTemplateRows) + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap')) || 0);
   }
   elAt(r, c) { return this.elements[Utils.idx(r, c)]; }
   _startGlowAnimation() {
     const animate = () => {
       this._glowPhase = (this._glowPhase + 0.05) % (Math.PI * 2);
-      for (let i = 0; i < this.elements.length; i++) {
-        const el = this.elements[i];
-        if (el.classList.contains('bomb') || el.classList.contains('cross') || el.classList.contains('row') || el.classList.contains('col')) {
-          const intensity = (Math.sin(this._glowPhase) + 1) / 2;
-          el.style.boxShadow = `inset 0 -5px 9px rgba(0,0,0,0.30), inset 0 4px 7px rgba(255,255,255,0.45), 0 0 ${8 + intensity * 12}px ${2 + intensity * 4}px rgba(255,255,255,${0.5 + intensity * 0.5})`;
-        }
+      const intensity = (Math.sin(this._glowPhase) + 1) / 2;
+      for (const el of this._specialEls) {
+        el.style.boxShadow = `inset 0 -5px 9px rgba(0,0,0,0.30), inset 0 4px 7px rgba(255,255,255,0.45), 0 0 ${8 + intensity * 12}px ${2 + intensity * 4}px rgba(255,255,255,${0.5 + intensity * 0.5})`;
       }
-      this._glowRafId = requestAnimationFrame(animate);
+      if (this._specialEls.length > 0) this._glowRafId = requestAnimationFrame(animate);
+      else this._glowRafId = null; // idle: no special candies on board, stop the loop
     };
     animate();
   }
   stopGlowAnimation() { if (this._glowRafId) { cancelAnimationFrame(this._glowRafId); this._glowRafId = null; } }
   render({ keepSelected = -1 } = {}) {
+    const falling = [];
+    this._specialEls = [];
     for (let i = 0; i < this.elements.length; i++) {
       const cell = this.board.data[i], el = this.elements[i];
-      el.className = 'candy'; el.innerHTML = ''; el.style.boxShadow = '';
+      el.className = 'candy'; el.innerHTML = ''; el.style.boxShadow = ''; el.style.transform = '';
       if (cell.empty) { el.classList.add('empty'); continue; }
       el.classList.add(cell.color);
       if (cell.special !== SPECIAL.NONE) {
         el.classList.add(cell.special);
         if (cell.special === SPECIAL.BOMB) el.innerHTML = '🍬';
         else if (cell.special === SPECIAL.CROSS) el.innerHTML = '🌟';
+        this._specialEls.push(el);
       }
-      if (cell.fresh) { el.classList.add('fresh'); cell.fresh = false; }
+      if (cell.fall) { el.classList.add('falling'); el.style.transform = `translateY(${-cell.fall * this._stride}px)`; falling.push(el); cell.fall = 0; }
+      else if (cell.fresh) { el.classList.add('fresh'); cell.fresh = false; }
       if (i === keepSelected) el.classList.add('selected');
     }
+    if (falling.length) {
+      void this.gridEl.offsetHeight; // force reflow so the start transform applies before transitioning
+      requestAnimationFrame(() => { for (const el of falling) { el.classList.remove('falling'); el.style.transform = ''; } });
+    }
+    if (!this._glowRafId && this._specialEls.length > 0) this._startGlowAnimation();
   }
 }
 
@@ -1373,9 +1394,9 @@ class Game {
       let writeR = Config.height - 1;
       for (let readR = Config.height - 1; readR >= 0; readR--) {
         const cell = this.board.get(readR, c);
-        if (!cell.empty) { if (writeR !== readR) { this.board.set(writeR, c, { ...cell, fresh: true }); this.board.set(readR, c, this.board.makeEmpty()); moved = true; } writeR--; }
+        if (!cell.empty) { if (writeR !== readR) { this.board.set(writeR, c, { ...cell, fresh: false, fall: writeR - readR }); this.board.set(readR, c, this.board.makeEmpty()); moved = true; } writeR--; }
       }
-      while (writeR >= 0) { this.board.set(writeR, c, this.board.makeNormal()); writeR--; moved = true; }
+      while (writeR >= 0) { this.board.set(writeR, c, { ...this.board.makeNormal(), fresh: false, fall: writeR + 1 }); writeR--; moved = true; }
     }
     this.renderer.render(); if (moved) await Utils.delay(Config.timing.drop);
   }
